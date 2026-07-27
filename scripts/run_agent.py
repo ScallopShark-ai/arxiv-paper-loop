@@ -77,7 +77,10 @@ def read_analysis_files(input_dir: str) -> list:
 
 def call_claude(system_prompt: str, user_message: str, model: str = "claude-sonnet-4-20250514") -> str:
     """Call Claude API."""
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = anthropic.Anthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        base_url=os.environ.get("ANTHROPIC_BASE_URL")
+    )
 
     message = client.messages.create(
         model=model,
