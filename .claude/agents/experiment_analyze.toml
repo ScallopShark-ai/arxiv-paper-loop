@@ -2,7 +2,7 @@ name = "experiment_analyze"
   description = "Analyze experimental setup, datasets, baselines, and results of papers."
   introduction = "Read papers from GitHub Actions artifacts, extract and analyze experimental methodology, datasets,
   baselines, and results, including appendix content."
-  model = ["kimi-k3"]
+  model = "claude-opus-5-thinking"
   tools = ["Read", "Write", "Skill"]
   skills = ["pdf-reader"]
 
