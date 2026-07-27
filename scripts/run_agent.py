@@ -96,7 +96,7 @@ def call_claude(system_prompt: str, user_message: str, model: str = "claude-sonn
 
 def run_analyze_pri(output_dir: str, paper_date: str = None):
     """Run analyze_pri agent - search and download papers."""
-    sys.path.insert(0, ".claude/skills/arxiv-connect")
+    sys.path.insert(0, ".claude/skills/arxiv-connect/scripts")
     from arxiv_client import ArxivClient
 
     config = load_agent_config("analyze_pri")
@@ -164,7 +164,7 @@ def run_analyze_acc(input_dir: str, output_dir: str):
         print(f"Analyzing: {paper['filename']}")
 
         # Read PDF content
-        sys.path.insert(0, ".claude/skills/pdf-reader")
+        sys.path.insert(0, ".claude/skills/pdf-reader/scripts")
         from pdf_reader import read_pdf
         content = read_pdf(paper['path'])
 
@@ -208,7 +208,7 @@ def run_summarize_and_publish(input_dir: str):
     summary = call_claude(system_prompt, user_message)
 
     # Publish to Notion
-    sys.path.insert(0, ".claude/skills/notion-connector")
+    sys.path.insert(0, ".claude/skills/notion-connector/scripts")
     from notion_client import write_page, clear_page
 
     clear_page()
