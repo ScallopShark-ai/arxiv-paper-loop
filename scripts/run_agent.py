@@ -22,9 +22,16 @@ def load_agent_config(agent_name: str) -> dict:
     if not config_path.exists():
         raise FileNotFoundError(f"Agent config not found: {config_path}")
 
-    with open(config_path, "rb") as f:
-        config = tomllib.load(f)
+    with open(config_path, "r", encoding="utf-8") as f:
+        content = f.read()
 
+    # Split on --- and only parse the TOML part
+    if "---" in content:
+        toml_part = content.split("---", 1)[0]
+    else:
+        toml_part = content
+
+    config = tomllib.loads(toml_part)
     return config
 
 
