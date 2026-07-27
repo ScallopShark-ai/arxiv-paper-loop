@@ -125,12 +125,25 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
     # Search by keywords relevant to RL, Agent, Human Behavior, Game AI Bot
     keywords = [
         "reinforcement learning",
+        "RLHF",
+        "preference learning",
+        "preference RL",
+        "reward learning",
+        "human feedback",
         "large language model agent",
+        "LLM agent",
+        "autonomous agent",
+        "AI agent",
         "human behavior",
+        "human-AI interaction",
         "game AI",
         "game bot",
-        "LLM agent",
-        "autonomous agent"
+        "game agent",
+        "training loop",
+        "RL loop",
+        "agent loop",
+        "self-play",
+        "harness"
     ]
 
     print("Searching with keywords instead of date range (more reliable)...")
