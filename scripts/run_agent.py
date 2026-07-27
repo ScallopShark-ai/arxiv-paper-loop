@@ -118,18 +118,51 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
 
     print(f"Searching papers for date range: {start_date} to {end_date}")
 
-    # Search papers
+    # Search papers - use keyword search instead of date range (more reliable)
+    # arXiv API date range queries often return 500 errors
     client = ArxivClient()
+
+    # Search by keywords relevant to RL, Agent, Human Behavior, Game AI Bot
+    keywords = [
+        "reinforcement learning",
+        "large language model agent",
+        "human behavior",
+        "game AI",
+        "game bot",
+        "LLM agent",
+        "autonomous agent"
+    ]
+
+    print("Searching with keywords instead of date range (more reliable)...")
     papers = client.search(
         categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE"],
-        start_date=start_date,
-        end_date=end_date,
-        max_results=100
+        keywords=keywords,
+        max_results=50
     )
+
+    # Filter papers by submission date locally
+    if papers and start_date and end_date:
+        from datetime import datetime as dt
+        start_dt = dt.strptime(start_date, "%Y-%m-%d")
+        end_dt = dt.strptime(end_date, "%Y-%m-%d")
+
+        filtered_papers = []
+        for paper in papers:
+            try:
+                # Parse paper published date
+                pub_date_str = paper.published.split("T")[0]  # Format: 2026-07-15T...
+                pub_date = dt.strptime(pub_date_str, "%Y-%m-%d")
+                if start_dt <= pub_date <= end_dt:
+                    filtered_papers.append(paper)
+            except:
+                continue
+
+        papers = filtered_papers
+        print(f"Filtered to {len(papers)} papers in date range")
 
     # Handle no papers found
     if not papers:
-        print("No papers found for the given date range")
+        print("No papers found for the given criteria")
         os.makedirs(output_dir, exist_ok=True)
         # Create a marker file to indicate no papers (non-hidden for artifact upload)
         with open(f"{output_dir}/no_papers.txt", "w", encoding="utf-8") as f:
@@ -139,7 +172,7 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
             f.write(f"\n## {datetime.now().strftime('%Y-%m-%d')}\n")
             f.write(f"- Papers screened: 0\n")
             f.write(f"- Papers downloaded: 0\n")
-            return []
+        return []
 
     # Filter papers using Claude
     os.makedirs(output_dir, exist_ok=True)
@@ -230,21 +263,49 @@ def run_summarize_and_publish(input_dir: str):
     # Read all analysis files
     analyses = read_analysis_files(input_dir)
 
-    # Handle no analyses found
+    # Handle no analyses found - generate Chinese report directly
     if not analyses:
         print("No analysis files found")
-        summary = "# 论文日报\n\n昨日没有相关论文。"
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        summary = f"""# 论文日报 - {date_str}
+
+## 每日概览
+- 日期：{date_str}
+- 分析论文数：0 篇
+- 评分分布：Accept (0), Minor Revision (0), Major Revision (0), Reject (0)
+
+## 论文摘要
+
+昨日没有发现符合筛选条件的相关论文。
+
+## 重点推荐
+
+暂无推荐论文。
+
+## 详细分析
+
+由于没有相关论文，暂无详细分析内容。
+
+---
+
+**说明：** 本日报基于arXiv每日更新的论文进行自动分析和筛选。未发现相关论文可能是由于：
+1. 该领域当日没有新提交的论文
+2. 新提交的论文不符合预设的筛选标准
+3. arXiv API 查询出现异常
+
+建议关注后续日期的更新。"""
     else:
         # Combine analyses
         combined = "\n\n".join([f"### {a['filename']}\n\n{a['content']}" for a in analyses])
 
-        user_message = f"""
-        Integrate these analyses and create a Chinese summary report:
+        user_message = f"""请根据以下分析报告，生成一份中文的论文日报。
 
-        {combined}
+{combined}
 
-        Output the report in Chinese format as specified in the agent configuration.
-        """
+输出要求：
+1. 必须使用中文输出所有内容
+2. 按照 agent 配置中的格式输出
+3. 包括每日概览、论文摘要、重点推荐等部分"""
 
         summary = call_claude(system_prompt, user_message)
 
