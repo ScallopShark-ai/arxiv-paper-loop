@@ -94,21 +94,25 @@ def call_claude(system_prompt: str, user_message: str, model: str = "claude-sonn
     return message.content[0].text
 
 
-def run_analyze_pri(output_dir: str):
+def run_analyze_pri(output_dir: str, paper_date: str = None):
     """Run analyze_pri agent - search and download papers."""
     from skills.arxiv_connect.scripts.arxiv_client import ArxivClient
 
     config = load_agent_config("analyze_pri")
     system_prompt = get_system_prompt(config)
 
-    # Get yesterday's date
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    # Use provided date or default to yesterday
+    if paper_date is None:
+        from datetime import timedelta
+        paper_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    print(f"Searching papers for date: {paper_date}")
 
     # Search papers
     client = ArxivClient()
     papers = client.search(
         categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE"],
-        date=yesterday,
+        date=paper_date,
         max_results=50
     )
 
@@ -216,6 +220,7 @@ def main():
     parser.add_argument("--agent", required=True, help="Agent name")
     parser.add_argument("--input-dir", help="Input directory")
     parser.add_argument("--output-dir", help="Output directory")
+    parser.add_argument("--date", help="Paper date (YYYY-MM-DD)")
     parser.add_argument("--publish-notion", action="store_true", help="Publish to Notion")
 
     args = parser.parse_args()
@@ -224,7 +229,7 @@ def main():
     sys.path.insert(0, ".")
 
     if args.agent == "analyze_pri":
-        run_analyze_pri(args.output_dir or "papers/")
+        run_analyze_pri(args.output_dir or "papers/", args.date)
 
     elif args.agent == "analyze_acc":
         run_analyze_acc(args.input_dir or "papers/", args.output_dir or "analysis/")

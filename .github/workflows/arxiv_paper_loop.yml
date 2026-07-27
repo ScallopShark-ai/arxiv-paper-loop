@@ -5,6 +5,11 @@ on:
     # 周二至周六 8:00 UTC (北京时间 16:00)
     - cron: '0 8 * * 2-6'
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      date:
+        description: 'Paper date (YYYY-MM-DD), leave empty for yesterday'
+        required: false
+        type: string
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -30,12 +35,22 @@ jobs:
         run: |
           pip install anthropic requests feedparser
 
+      - name: Set date
+        id: date
+        run: |
+          if [ -n "${{ inputs.date }}" ]; then
+            echo "paper_date=${{ inputs.date }}" >> $GITHUB_OUTPUT
+          else
+            echo "paper_date=$(date -d 'yesterday' +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run analyze_pri agent
         id: analyze_pri
         run: |
           python scripts/run_agent.py \
             --agent analyze_pri \
-            --output-dir papers/
+            --output-dir papers/ \
+            --date ${{ steps.date.outputs.paper_date }}
 
       - name: Count papers
         id: count
