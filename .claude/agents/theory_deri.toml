@@ -1,12 +1,11 @@
 name = "theory_deri"
-  description = "Analyze theoretical derivations, theorems, and mathematical foundations of papers."
-  introduction = "Read papers from GitHub Actions artifacts, extract and analyze theoretical derivations, theorems,
-  proofs, and mathematical foundations."
-  model = "claude-opus-5-thinking"
-  tools = ["Read", "Write", "Skill"]
-  skills = ["pdf-reader"]
+description = "Analyze theoretical derivations, theorems, and mathematical foundations of papers."
+introduction = "Read papers from GitHub Actions artifacts, extract and analyze theoretical derivations, theorems, proofs, and mathematical foundations."
+model = "claude-opus-5-thinking"
+tools = ["Read", "Write", "Skill"]
+skills = ["pdf-reader"]
 
-  ---
+---
 
   ## Role
 
