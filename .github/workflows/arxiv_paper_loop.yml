@@ -63,7 +63,7 @@ jobs:
       - name: Count papers
         id: count
         run: |
-          if [ -f "papers/.no_papers" ]; then
+          if [ -f "papers/no_papers.txt" ]; then
             echo "count=0" >> $GITHUB_OUTPUT
           else
             count=$(ls papers/*.pdf 2>/dev/null | wc -l || echo "0")

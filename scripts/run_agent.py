@@ -131,8 +131,8 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
     if not papers:
         print("No papers found for the given date range")
         os.makedirs(output_dir, exist_ok=True)
-        # Create a marker file to indicate no papers
-        with open(f"{output_dir}/.no_papers", "w", encoding="utf-8") as f:
+        # Create a marker file to indicate no papers (non-hidden for artifact upload)
+        with open(f"{output_dir}/no_papers.txt", "w", encoding="utf-8") as f:
             f.write(f"No papers found for date range {start_date} to {end_date}")
         # Update state
         with open("state.md", "a", encoding="utf-8") as f:
