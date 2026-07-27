@@ -8,6 +8,7 @@ import os
 import sys
 import argparse
 import glob
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -82,8 +83,8 @@ def read_analysis_files(input_dir: str) -> list:
     return analyses
 
 
-def call_claude(system_prompt: str, user_message: str, model: str = "claude-sonnet-4-20250514") -> str:
-    """Call Claude API."""
+def call_claude(system_prompt: str, user_message: str, model: str) -> str:
+    """Call Claude API with specified model."""
     client = anthropic.Anthropic(
         api_key=os.environ.get("ANTHROPIC_API_KEY"),
         base_url=os.environ.get("ANTHROPIC_BASE_URL")
@@ -101,13 +102,14 @@ def call_claude(system_prompt: str, user_message: str, model: str = "claude-sonn
     return message.content[0].text
 
 
-def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = None):
+def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None):
     """Run analyze_pri agent - search and download papers."""
     sys.path.insert(0, ".claude/skills/arxiv-connect/scripts")
     from arxiv_client import ArxivClient
 
     config = load_agent_config("analyze_pri")
     system_prompt = get_system_prompt(config)
+    model = config.get("model", "claude-sonnet-4-20250514")
 
     # Use provided date range or default to yesterday
     if start_date is None or end_date is None:
@@ -117,9 +119,9 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
         end_date = yesterday
 
     print(f"Searching papers for date range: {start_date} to {end_date}")
+    print(f"Using model: {model}")
 
     # Search papers - use keyword search instead of date range (more reliable)
-    # arXiv API date range queries often return 500 errors
     client = ArxivClient()
 
     # Search by keywords relevant to RL, Agent, Human Behavior, Game AI Bot
@@ -146,7 +148,7 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
         "harness"
     ]
 
-    print("Searching with keywords instead of date range (more reliable)...")
+    print("Searching with keywords...")
     papers = client.search(
         categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE"],
         keywords=keywords,
@@ -162,8 +164,7 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
         filtered_papers = []
         for paper in papers:
             try:
-                # Parse paper published date
-                pub_date_str = paper.published.split("T")[0]  # Format: 2026-07-15T...
+                pub_date_str = paper.published.split("T")[0]
                 pub_date = dt.strptime(pub_date_str, "%Y-%m-%d")
                 if start_dt <= pub_date <= end_dt:
                     filtered_papers.append(paper)
@@ -173,26 +174,21 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
         papers = filtered_papers
         print(f"Filtered to {len(papers)} papers in date range")
 
+    # Create directories
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(temp_dir, exist_ok=True)
+
     # Handle no papers found
     if not papers:
         print("No papers found for the given criteria")
-        os.makedirs(output_dir, exist_ok=True)
-        # Create a marker file to indicate no papers (non-hidden for artifact upload)
         with open(f"{output_dir}/no_papers.txt", "w", encoding="utf-8") as f:
             f.write(f"No papers found for date range {start_date} to {end_date}")
-        # Update state
-        with open("state.md", "a", encoding="utf-8") as f:
-            f.write(f"\n## {datetime.now().strftime('%Y-%m-%d')}\n")
-            f.write(f"- Papers screened: 0\n")
-            f.write(f"- Papers downloaded: 0\n")
         return []
 
     # Filter papers using Claude
-    os.makedirs(output_dir, exist_ok=True)
     downloaded = []
 
-    for paper in papers[:30]:  # Limit to 30
-        # Ask Claude to evaluate the paper
+    for paper in papers[:30]:
         user_message = f"""
         Evaluate this paper based on the screening criteria:
 
@@ -203,42 +199,43 @@ def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = Non
         Should this paper be downloaded? Answer YES or NO with a brief reason.
         """
 
-        response = call_claude(system_prompt, user_message)
+        response = call_claude(system_prompt, user_message, model)
 
         if "YES" in response.upper():
             print(f"Downloading: {paper.arxiv_id}")
+            # Download to both output_dir and temp_dir
             client.download(paper.arxiv_id, output_dir)
+            client.download(paper.arxiv_id, temp_dir)
             downloaded.append(paper)
-
-    # Update state
-    with open("state.md", "a", encoding="utf-8") as f:
-        f.write(f"\n## {datetime.now().strftime('%Y-%m-%d')}\n")
-        f.write(f"- Papers screened: {len(papers)}\n")
-        f.write(f"- Papers downloaded: {len(downloaded)}\n")
 
     return downloaded
 
 
-def run_analyze_acc(input_dir: str, output_dir: str):
-    """Run analyze_acc agent - comprehensive paper analysis."""
-    config = load_agent_config("analyze_acc")
+def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir: str):
+    """Run an analysis agent (analyze_acc, theory_deri, experiment_analyze)."""
+    config = load_agent_config(agent_name)
     system_prompt = get_system_prompt(config)
+    model = config.get("model", "claude-sonnet-4-20250514")
 
     papers = read_papers(input_dir)
     os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(temp_dir, exist_ok=True)
+
+    print(f"Running {agent_name} with model: {model}")
 
     # Handle no papers found
     if not papers:
         print("No papers to analyze")
         date_str = datetime.now().strftime("%Y-%m-%d")
-        output_file = f"{output_dir}/{date_str}-acc.md"
+        suffix = "acc" if agent_name == "analyze_acc" else ("theory" if agent_name == "theory_deri" else "exp")
+        output_file = f"{output_dir}/{date_str}-{suffix}.md"
         with open(output_file, "w", encoding="utf-8") as f:
-            f.write("# 无相关论文\n\n")
-            f.write("昨日没有相关论文。\n")
+            f.write("# 无相关论文\n\n昨日没有相关论文。\n")
         return output_file
 
     all_analyses = []
     date_str = datetime.now().strftime("%Y-%m-%d")
+    suffix = "acc" if agent_name == "analyze_acc" else ("theory" if agent_name == "theory_deri" else "exp")
 
     for paper in papers:
         print(f"Analyzing: {paper['filename']}")
@@ -254,29 +251,47 @@ def run_analyze_acc(input_dir: str, output_dir: str):
         Filename: {paper['filename']}
 
         Content:
-        {content[:50000]}  # Limit content length
+        {content[:50000]}
         """
 
-        analysis = call_claude(system_prompt, user_message, model="claude-sonnet-4-20250514")
+        analysis = call_claude(system_prompt, user_message, model)
         all_analyses.append(f"## {paper['filename']}\n\n{analysis}")
 
-    # Write output
-    output_file = f"{output_dir}/{date_str}-acc.md"
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write("\n\n---\n\n".join(all_analyses))
+    # Write output to both output_dir and temp_dir
+    output_file = f"{output_dir}/{date_str}-{suffix}.md"
+    temp_file = f"{temp_dir}/{date_str}-{suffix}.md"
 
+    content = "\n\n---\n\n".join(all_analyses)
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    with open(temp_file, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    print(f"Wrote analysis to: {output_file}")
     return output_file
 
 
-def run_summarize_and_publish(input_dir: str):
+def run_summarize_and_publish(input_dir: str, temp_dir: str):
     """Run summarize_and_publish agent - integrate and publish to Notion."""
     config = load_agent_config("summarize_and_publish")
     system_prompt = get_system_prompt(config)
+    model = config.get("model", "claude-sonnet-4-20250514")
+
+    print(f"Running summarize_and_publish with model: {model}")
 
     # Read all analysis files
     analyses = read_analysis_files(input_dir)
 
-    # Handle no analyses found - generate Chinese report directly
+    # Separate analyses by type
+    acc_analyses = [a for a in analyses if '-acc.' in a['filename']]
+    theory_analyses = [a for a in analyses if '-theory.' in a['filename']]
+    exp_analyses = [a for a in analyses if '-exp.' in a['filename']]
+
+    print(f"Found: {len(acc_analyses)} acc, {len(theory_analyses)} theory, {len(exp_analyses)} exp analyses")
+
+    # Handle no analyses found
     if not analyses:
         print("No analysis files found")
         date_str = datetime.now().strftime("%Y-%m-%d")
@@ -285,7 +300,6 @@ def run_summarize_and_publish(input_dir: str):
 ## 每日概览
 - 日期：{date_str}
 - 分析论文数：0 篇
-- 评分分布：Accept (0), Minor Revision (0), Major Revision (0), Reject (0)
 
 ## 论文摘要
 
@@ -301,32 +315,55 @@ def run_summarize_and_publish(input_dir: str):
 
 ---
 
-**说明：** 本日报基于arXiv每日更新的论文进行自动分析和筛选。未发现相关论文可能是由于：
-1. 该领域当日没有新提交的论文
-2. 新提交的论文不符合预设的筛选标准
-3. arXiv API 查询出现异常
-
-建议关注后续日期的更新。"""
+**说明：** 本日报基于arXiv每日更新的论文进行自动分析和筛选。
+"""
     else:
-        # Combine analyses
-        combined = "\n\n".join([f"### {a['filename']}\n\n{a['content']}" for a in analyses])
+        # Build combined input with clear sections
+        combined_input = "# 输入分析报告\n\n"
 
-        user_message = f"""请根据以下分析报告，生成一份中文的论文日报。
+        if acc_analyses:
+            combined_input += "## 综合评价分析 (acc)\n\n"
+            for a in acc_analyses:
+                combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
 
-{combined}
+        if theory_analyses:
+            combined_input += "## 理论推导分析 (theory)\n\n"
+            for a in theory_analyses:
+                combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
+
+        if exp_analyses:
+            combined_input += "## 实验分析 (exp)\n\n"
+            for a in exp_analyses:
+                combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
+
+        user_message = f"""请根据以下分析报告，生成一份完整的中文论文日报。
+
+{combined_input}
 
 输出要求：
 1. 必须使用中文输出所有内容
-2. 按照 agent 配置中的格式输出
-3. 包括每日概览、论文摘要、重点推荐等部分"""
+2. 必须整合以下所有部分：
+   - 综合评价部分（来自acc分析）
+   - 理论推导部分（来自theory分析，如有）
+   - 实验分析部分（来自exp分析，如有）
+3. 按照 agent 配置中的格式输出
+4. 包括每日概览、论文摘要、重点推荐、详细分析等部分
+5. 每篇论文都要整合其acc、theory、exp三方面的分析"""
 
-        summary = call_claude(system_prompt, user_message)
+        summary = call_claude(system_prompt, user_message, model)
 
-    # Publish to Notion - create new child page with today's date
+    # Save summary to temp folder
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    temp_summary_file = f"{temp_dir}/{date_str}-summary.md"
+    os.makedirs(temp_dir, exist_ok=True)
+    with open(temp_summary_file, "w", encoding="utf-8") as f:
+        f.write(summary)
+    print(f"Saved summary to: {temp_summary_file}")
+
+    # Publish to Notion
     sys.path.insert(0, ".claude/skills/notion-connector/scripts")
     from notion_publisher import create_child_page, write_to_page
 
-    date_str = datetime.now().strftime("%Y-%m-%d")
     print(f"Creating new Notion page for: {date_str}")
     page_id = create_child_page(date_str)
     write_to_page(page_id, summary)
@@ -340,6 +377,7 @@ def main():
     parser.add_argument("--agent", required=True, help="Agent name")
     parser.add_argument("--input-dir", help="Input directory")
     parser.add_argument("--output-dir", help="Output directory")
+    parser.add_argument("--temp-dir", default="temp", help="Temp directory for intermediate files")
     parser.add_argument("--start-date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", help="End date (YYYY-MM-DD)")
     parser.add_argument("--publish-notion", action="store_true", help="Publish to Notion")
@@ -350,21 +388,19 @@ def main():
     sys.path.insert(0, ".")
 
     if args.agent == "analyze_pri":
-        run_analyze_pri(args.output_dir or "papers/", args.start_date, args.end_date)
+        run_analyze_pri(args.output_dir or "papers/", args.temp_dir, args.start_date, args.end_date)
 
     elif args.agent == "analyze_acc":
-        run_analyze_acc(args.input_dir or "papers/", args.output_dir or "analysis/")
+        run_analyze_agent("analyze_acc", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir)
 
     elif args.agent == "theory_deri":
-        # Similar to analyze_acc but with different prompt
-        run_analyze_acc(args.input_dir or "papers/", args.output_dir or "analysis/")
+        run_analyze_agent("theory_deri", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir)
 
     elif args.agent == "experiment_analyze":
-        # Similar to analyze_acc but with different prompt
-        run_analyze_acc(args.input_dir or "papers/", args.output_dir or "analysis/")
+        run_analyze_agent("experiment_analyze", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir)
 
     elif args.agent == "summarize_and_publish":
-        run_summarize_and_publish(args.input_dir or "analysis/")
+        run_summarize_and_publish(args.input_dir or "analysis/", args.temp_dir)
 
     else:
         print(f"Unknown agent: {args.agent}")

@@ -46,7 +46,6 @@ jobs:
             echo "start_date=${{ inputs.start_date }}" >> $GITHUB_OUTPUT
             echo "end_date=${{ inputs.end_date }}" >> $GITHUB_OUTPUT
           else
-            # Default: search last 24 days (today - 24 to today)
             echo "start_date=$(date -d 'today -24 days' +%Y-%m-%d)" >> $GITHUB_OUTPUT
             echo "end_date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
@@ -57,6 +56,7 @@ jobs:
           python scripts/run_agent.py \
             --agent analyze_pri \
             --output-dir papers/ \
+            --temp-dir temp/ \
             --start-date ${{ steps.date.outputs.start_date }} \
             --end-date ${{ steps.date.outputs.end_date }}
 
@@ -75,6 +75,13 @@ jobs:
         with:
           name: papers
           path: papers/
+          retention-days: 1
+
+      - name: Upload temp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: temp-pri
+          path: temp/
           retention-days: 1
 
   # Job 2: 精读分析
@@ -99,18 +106,33 @@ jobs:
           name: papers
           path: papers/
 
+      - name: Download temp artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: temp-pri
+          path: temp/
+        continue-on-error: true
+
       - name: Run analyze_acc agent
         run: |
           python scripts/run_agent.py \
             --agent analyze_acc \
             --input-dir papers/ \
-            --output-dir analysis/
+            --output-dir analysis/ \
+            --temp-dir temp/
 
       - name: Upload analysis artifact
         uses: actions/upload-artifact@v4
         with:
           name: analysis-acc
           path: analysis/
+          retention-days: 1
+
+      - name: Upload temp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: temp-acc
+          path: temp/
           retention-days: 1
 
   # Job 3: 理论分析
@@ -135,18 +157,33 @@ jobs:
           name: papers
           path: papers/
 
+      - name: Download temp artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: temp-pri
+          path: temp/
+        continue-on-error: true
+
       - name: Run theory_deri agent
         run: |
           python scripts/run_agent.py \
             --agent theory_deri \
             --input-dir papers/ \
-            --output-dir analysis/
+            --output-dir analysis/ \
+            --temp-dir temp/
 
       - name: Upload analysis artifact
         uses: actions/upload-artifact@v4
         with:
           name: analysis-theory
           path: analysis/
+          retention-days: 1
+
+      - name: Upload temp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: temp-theory
+          path: temp/
           retention-days: 1
 
   # Job 4: 实验分析
@@ -171,18 +208,33 @@ jobs:
           name: papers
           path: papers/
 
+      - name: Download temp artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: temp-pri
+          path: temp/
+        continue-on-error: true
+
       - name: Run experiment_analyze agent
         run: |
           python scripts/run_agent.py \
             --agent experiment_analyze \
             --input-dir papers/ \
-            --output-dir analysis/
+            --output-dir analysis/ \
+            --temp-dir temp/
 
       - name: Upload analysis artifact
         uses: actions/upload-artifact@v4
         with:
           name: analysis-exp
           path: analysis/
+          retention-days: 1
+
+      - name: Upload temp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: temp-exp
+          path: temp/
           retention-days: 1
 
   # Job 5: 汇总发布
@@ -208,12 +260,28 @@ jobs:
           path: analysis/
           merge-multiple: true
 
+      - name: Download all temp artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: temp-*
+          path: temp/
+          merge-multiple: true
+        continue-on-error: true
+
       - name: Run summarize_and_publish agent
         run: |
           python scripts/run_agent.py \
             --agent summarize_and_publish \
             --input-dir analysis/ \
+            --temp-dir temp/ \
             --publish-notion
+
+      - name: Upload final temp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: temp-final
+          path: temp/
+          retention-days: 1
 
       - name: Workflow completed
         run: |
