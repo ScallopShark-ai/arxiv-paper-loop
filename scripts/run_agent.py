@@ -248,7 +248,7 @@ def run_summarize_and_publish(input_dir: str):
 
     # Publish to Notion
     sys.path.insert(0, ".claude/skills/notion-connector/scripts")
-    from notion_client import write_page, clear_page
+    from notion_publisher import write_page, clear_page
 
     clear_page()
     write_page(summary)
