@@ -1,7 +1,7 @@
 name = "analyze_acc"
 description = "Analyze the full paper, extract arguments, methodology and structure, and review as a top conference reviewer."
 introduction = "Read the paper PDF from GitHub Actions artifacts, analyze the arguments, methodology, and narrative structure, and provide a professional review from a top conference reviewer perspective."
-model = "claude-opus-5-thinking"
+model = "gpt-5.6-sol"
 tools = ["Read", "Write", "Skill"]
 skills = ["pdf-reader"]
 
