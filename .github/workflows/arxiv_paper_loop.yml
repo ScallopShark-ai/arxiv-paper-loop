@@ -1,0 +1,192 @@
+name: ArXiv Paper Loop
+
+on:
+  schedule:
+    # 周二至周六 8:00 UTC (北京时间 16:00)
+    - cron: '0 8 * * 2-6'
+  workflow_dispatch:  # 允许手动触发
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+  NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+
+jobs:
+  # Job 1: 初筛下载
+  analyze_pri:
+    runs-on: ubuntu-latest
+    outputs:
+      paper_count: ${{ steps.count.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic requests feedparser
+
+      - name: Run analyze_pri agent
+        id: analyze_pri
+        run: |
+          python scripts/run_agent.py \
+            --agent analyze_pri \
+            --output-dir papers/
+
+      - name: Count papers
+        id: count
+        run: |
+          count=$(ls papers/*.pdf 2>/dev/null | wc -l || echo "0")
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+      - name: Upload papers artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: papers
+          path: papers/
+          retention-days: 1
+
+  # Job 2: 精读分析
+  analyze_acc:
+    needs: analyze_pri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic marker-pdf pymupdf pdfplumber
+
+      - name: Download papers artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: papers
+          path: papers/
+
+      - name: Run analyze_acc agent
+        run: |
+          python scripts/run_agent.py \
+            --agent analyze_acc \
+            --input-dir papers/ \
+            --output-dir analysis/
+
+      - name: Upload analysis artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-acc
+          path: analysis/
+          retention-days: 1
+
+  # Job 3: 理论分析
+  theory_deri:
+    needs: analyze_pri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic marker-pdf pymupdf pdfplumber
+
+      - name: Download papers artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: papers
+          path: papers/
+
+      - name: Run theory_deri agent
+        run: |
+          python scripts/run_agent.py \
+            --agent theory_deri \
+            --input-dir papers/ \
+            --output-dir analysis/
+
+      - name: Upload analysis artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-theory
+          path: analysis/
+          retention-days: 1
+
+  # Job 4: 实验分析
+  experiment_analyze:
+    needs: analyze_pri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic marker-pdf pymupdf pdfplumber
+
+      - name: Download papers artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: papers
+          path: papers/
+
+      - name: Run experiment_analyze agent
+        run: |
+          python scripts/run_agent.py \
+            --agent experiment_analyze \
+            --input-dir papers/ \
+            --output-dir analysis/
+
+      - name: Upload analysis artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-exp
+          path: analysis/
+          retention-days: 1
+
+  # Job 5: 汇总发布
+  summarize_and_publish:
+    needs: [analyze_acc, theory_deri, experiment_analyze]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic notion-client
+
+      - name: Download all analysis artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: analysis-*
+          path: analysis/
+          merge-multiple: true
+
+      - name: Run summarize_and_publish agent
+        run: |
+          python scripts/run_agent.py \
+            --agent summarize_and_publish \
+            --input-dir analysis/ \
+            --publish-notion
+
+      - name: Workflow completed
+        run: |
+          echo "ArXiv Paper Loop completed successfully!"
