@@ -1,7 +1,7 @@
 name = "analyze_pri"
 description = "Preliminarily screen papers based on abstracts."
 introduction = "Search arXiv for papers by date and keywords, evaluate their value based on abstracts, and download valuable papers as GitHub Actions artifacts for downstream analysis."
-model = "gpt-5.5-2026-04-23"
+model = "gpt-5.5"
 tools = ["Edit" , "Bash" , "Read" , "Write" , "WebFetch"]
 skills = ["arxiv-connect"]
  ---
