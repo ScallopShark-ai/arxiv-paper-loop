@@ -102,7 +102,7 @@ def call_claude(system_prompt: str, user_message: str, model: str) -> str:
     return message.content[0].text
 
 
-def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None):
+def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None, save_temp: bool = False):
     """Run analyze_pri agent - search and download papers."""
     sys.path.insert(0, ".claude/skills/arxiv-connect/scripts")
     from arxiv_client import ArxivClient
@@ -176,7 +176,8 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
 
     # Create directories
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(temp_dir, exist_ok=True)
+    if save_temp:
+        os.makedirs(temp_dir, exist_ok=True)
 
     # Handle no papers found
     if not papers:
@@ -203,15 +204,17 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
 
         if "YES" in response.upper():
             print(f"Downloading: {paper.arxiv_id}")
-            # Download to both output_dir and temp_dir
+            # Download to output_dir (always)
             client.download(paper.arxiv_id, output_dir)
-            client.download(paper.arxiv_id, temp_dir)
+            # Download to temp_dir only if save_temp is True
+            if save_temp:
+                client.download(paper.arxiv_id, temp_dir)
             downloaded.append(paper)
 
     return downloaded
 
 
-def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir: str):
+def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir: str, save_temp: bool = False):
     """Run an analysis agent (analyze_acc, theory_deri, experiment_analyze)."""
     config = load_agent_config(agent_name)
     system_prompt = get_system_prompt(config)
@@ -219,7 +222,8 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
 
     papers = read_papers(input_dir)
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(temp_dir, exist_ok=True)
+    if save_temp:
+        os.makedirs(temp_dir, exist_ok=True)
 
     print(f"Running {agent_name} with model: {model}")
 
@@ -257,23 +261,24 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
         analysis = call_claude(system_prompt, user_message, model)
         all_analyses.append(f"## {paper['filename']}\n\n{analysis}")
 
-    # Write output to both output_dir and temp_dir
+    # Write output to output_dir (always)
     output_file = f"{output_dir}/{date_str}-{suffix}.md"
-    temp_file = f"{temp_dir}/{date_str}-{suffix}.md"
-
     content = "\n\n---\n\n".join(all_analyses)
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(content)
 
-    with open(temp_file, "w", encoding="utf-8") as f:
-        f.write(content)
+    # Write to temp_dir only if save_temp is True
+    if save_temp:
+        temp_file = f"{temp_dir}/{date_str}-{suffix}.md"
+        with open(temp_file, "w", encoding="utf-8") as f:
+            f.write(content)
 
     print(f"Wrote analysis to: {output_file}")
     return output_file
 
 
-def run_summarize_and_publish(input_dir: str, temp_dir: str):
+def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = False):
     """Run summarize_and_publish agent - integrate and publish to Notion."""
     config = load_agent_config("summarize_and_publish")
     system_prompt = get_system_prompt(config)
@@ -352,18 +357,20 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str):
 
         summary = call_claude(system_prompt, user_message, model)
 
-    # Save summary to temp folder
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    temp_summary_file = f"{temp_dir}/{date_str}-summary.md"
-    os.makedirs(temp_dir, exist_ok=True)
-    with open(temp_summary_file, "w", encoding="utf-8") as f:
-        f.write(summary)
-    print(f"Saved summary to: {temp_summary_file}")
+    # Save summary to temp folder only if save_temp is True
+    if save_temp:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        temp_summary_file = f"{temp_dir}/{date_str}-summary.md"
+        os.makedirs(temp_dir, exist_ok=True)
+        with open(temp_summary_file, "w", encoding="utf-8") as f:
+            f.write(summary)
+        print(f"Saved summary to: {temp_summary_file}")
 
     # Publish to Notion
     sys.path.insert(0, ".claude/skills/notion-connector/scripts")
     from notion_publisher import create_child_page, write_to_page
 
+    date_str = datetime.now().strftime("%Y-%m-%d")
     print(f"Creating new Notion page for: {date_str}")
     page_id = create_child_page(date_str)
     write_to_page(page_id, summary)
@@ -380,6 +387,7 @@ def main():
     parser.add_argument("--temp-dir", default="temp", help="Temp directory for intermediate files")
     parser.add_argument("--start-date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", help="End date (YYYY-MM-DD)")
+    parser.add_argument("--save-temp", action="store_true", help="Save intermediate files to temp folder")
     parser.add_argument("--publish-notion", action="store_true", help="Publish to Notion")
 
     args = parser.parse_args()
@@ -388,19 +396,19 @@ def main():
     sys.path.insert(0, ".")
 
     if args.agent == "analyze_pri":
-        run_analyze_pri(args.output_dir or "papers/", args.temp_dir, args.start_date, args.end_date)
+        run_analyze_pri(args.output_dir or "papers/", args.temp_dir, args.start_date, args.end_date, args.save_temp)
 
     elif args.agent == "analyze_acc":
-        run_analyze_agent("analyze_acc", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir)
+        run_analyze_agent("analyze_acc", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)
 
     elif args.agent == "theory_deri":
-        run_analyze_agent("theory_deri", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir)
+        run_analyze_agent("theory_deri", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)
 
     elif args.agent == "experiment_analyze":
-        run_analyze_agent("experiment_analyze", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir)
+        run_analyze_agent("experiment_analyze", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)
 
     elif args.agent == "summarize_and_publish":
-        run_summarize_and_publish(args.input_dir or "analysis/", args.temp_dir)
+        run_summarize_and_publish(args.input_dir or "analysis/", args.temp_dir, args.save_temp)
 
     else:
         print(f"Unknown agent: {args.agent}")
