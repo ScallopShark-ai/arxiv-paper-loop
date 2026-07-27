@@ -233,27 +233,31 @@ def run_summarize_and_publish(input_dir: str):
     # Handle no analyses found
     if not analyses:
         print("No analysis files found")
-        summary = "# 无相关论文\n\n昨日没有相关论文。"
+        summary = "# 论文日报\n\n昨日没有相关论文。"
     else:
         # Combine analyses
         combined = "\n\n".join([f"### {a['filename']}\n\n{a['content']}" for a in analyses])
 
         user_message = f"""
-        Integrate these analyses and create a summary:
+        Integrate these analyses and create a Chinese summary report:
 
         {combined}
+
+        Output the report in Chinese format as specified in the agent configuration.
         """
 
         summary = call_claude(system_prompt, user_message)
 
-    # Publish to Notion
+    # Publish to Notion - create new child page with today's date
     sys.path.insert(0, ".claude/skills/notion-connector/scripts")
-    from notion_publisher import write_page, clear_page
+    from notion_publisher import create_child_page, write_to_page
 
-    clear_page()
-    write_page(summary)
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    print(f"Creating new Notion page for: {date_str}")
+    page_id = create_child_page(date_str)
+    write_to_page(page_id, summary)
 
-    print("Published to Notion!")
+    print(f"Published to Notion! Page ID: {page_id}")
     return summary
 
 

@@ -134,6 +134,57 @@ class NotionClient:
         logger.info(f"Cleared {len(blocks)} blocks")
         return True
 
+    def create_child_page(self, title: str) -> str:
+        """
+        Create a new child page under the designated parent page.
+
+        Args:
+            title: Title for the new page
+
+        Returns:
+            ID of the newly created page
+        """
+        logger.info(f"Creating child page: {title}")
+
+        # Create the page
+        response = self._retry(
+            self.client.pages.create,
+            parent={"page_id": self.page_id},
+            properties={
+                "title": {
+                    "title": [{"type": "text", "text": {"content": title}}]
+                }
+            }
+        )
+
+        new_page_id = response.get("id")
+        logger.info(f"Created page: {new_page_id}")
+        return new_page_id
+
+    def write_to_page(self, page_id: str, content: str) -> bool:
+        """
+        Write content to a specific page.
+
+        Args:
+            page_id: ID of the page to write to
+            content: Markdown content to write
+
+        Returns:
+            True if successful
+        """
+        logger.info(f"Writing to page: {page_id}")
+
+        blocks = self._markdown_to_blocks(content)
+
+        self._retry(
+            self.client.blocks.children.append,
+            block_id=page_id,
+            children=blocks
+        )
+
+        logger.info(f"Wrote {len(blocks)} blocks")
+        return True
+
     def _markdown_to_blocks(self, markdown: str) -> List[Dict]:
         """
         Convert Markdown text to Notion block format.
@@ -263,3 +314,28 @@ def write_page(content: str) -> bool:
 def clear_page() -> bool:
     """Clear all content from the designated page."""
     return get_client().clear_page()
+
+def create_child_page(title: str) -> str:
+    """
+    Create a new child page under the designated parent page.
+
+    Args:
+        title: Title for the new page
+
+    Returns:
+        ID of the newly created page
+    """
+    return get_client().create_child_page(title)
+
+def write_to_page(page_id: str, content: str) -> bool:
+    """
+    Write content to a specific page.
+
+    Args:
+        page_id: ID of the page to write to
+        content: Markdown content to write
+
+    Returns:
+        True if successful
+    """
+    return get_client().write_to_page(page_id, content)
