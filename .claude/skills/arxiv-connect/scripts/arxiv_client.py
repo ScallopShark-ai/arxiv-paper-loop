@@ -82,6 +82,8 @@ class ArxivClient:
         categories: List[str] = None,
         keywords: List[str] = None,
         date: str = None,
+        start_date: str = None,
+        end_date: str = None,
         max_results: int = 50
     ) -> List[Paper]:
         """
@@ -91,6 +93,8 @@ class ArxivClient:
             categories: List of arXiv categories (e.g., ["cs.LG", "cs.AI"])
             keywords: List of search keywords
             date: Date in YYYY-MM-DD format (searches papers from this date)
+            start_date: Start date for date range (YYYY-MM-DD)
+            end_date: End date for date range (YYYY-MM-DD)
             max_results: Maximum number of results to return
 
         Returns:
@@ -110,6 +114,9 @@ class ArxivClient:
         if date:
             # arXiv uses submission date, search for papers on that date
             query_parts.append(f"submittedDate:[{date} TO {date}]")
+        elif start_date and end_date:
+            # Date range search
+            query_parts.append(f"submittedDate:[{start_date} TO {end_date}]")
 
         query = " AND ".join(query_parts) if query_parts else "all:*"
 
@@ -275,10 +282,12 @@ def search_papers(
     categories: List[str] = None,
     keywords: List[str] = None,
     date: str = None,
+    start_date: str = None,
+    end_date: str = None,
     max_results: int = 50
 ) -> List[Paper]:
     """Search for papers on arXiv."""
-    return get_client().search(categories, keywords, date, max_results)
+    return get_client().search(categories, keywords, date, start_date, end_date, max_results)
 
 
 def get_paper_info(arxiv_id: str) -> Optional[Paper]:

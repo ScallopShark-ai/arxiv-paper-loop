@@ -9,7 +9,9 @@
       "Bash(gh auth *)",
       "Bash(gh repo *)",
       "Bash(git commit --amend -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(gh workflow *)",
+      "Bash(gh run *)"
     ]
   }
 }

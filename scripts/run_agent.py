@@ -101,7 +101,7 @@ def call_claude(system_prompt: str, user_message: str, model: str = "claude-sonn
     return message.content[0].text
 
 
-def run_analyze_pri(output_dir: str, paper_date: str = None):
+def run_analyze_pri(output_dir: str, start_date: str = None, end_date: str = None):
     """Run analyze_pri agent - search and download papers."""
     sys.path.insert(0, ".claude/skills/arxiv-connect/scripts")
     from arxiv_client import ArxivClient
@@ -109,26 +109,43 @@ def run_analyze_pri(output_dir: str, paper_date: str = None):
     config = load_agent_config("analyze_pri")
     system_prompt = get_system_prompt(config)
 
-    # Use provided date or default to yesterday
-    if paper_date is None:
+    # Use provided date range or default to yesterday
+    if start_date is None or end_date is None:
         from datetime import timedelta
-        paper_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        start_date = yesterday
+        end_date = yesterday
 
-    print(f"Searching papers for date: {paper_date}")
+    print(f"Searching papers for date range: {start_date} to {end_date}")
 
     # Search papers
     client = ArxivClient()
     papers = client.search(
         categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE"],
-        date=paper_date,
-        max_results=50
+        start_date=start_date,
+        end_date=end_date,
+        max_results=100
     )
+
+    # Handle no papers found
+    if not papers:
+        print("No papers found for the given date range")
+        os.makedirs(output_dir, exist_ok=True)
+        # Create a marker file to indicate no papers
+        with open(f"{output_dir}/.no_papers", "w", encoding="utf-8") as f:
+            f.write(f"No papers found for date range {start_date} to {end_date}")
+        # Update state
+        with open("state.md", "a", encoding="utf-8") as f:
+            f.write(f"\n## {datetime.now().strftime('%Y-%m-%d')}\n")
+            f.write(f"- Papers screened: 0\n")
+            f.write(f"- Papers downloaded: 0\n")
+            return []
 
     # Filter papers using Claude
     os.makedirs(output_dir, exist_ok=True)
     downloaded = []
 
-    for paper in papers[:20]:  # Limit to 20
+    for paper in papers[:30]:  # Limit to 30
         # Ask Claude to evaluate the paper
         user_message = f"""
         Evaluate this paper based on the screening criteria:
@@ -163,6 +180,16 @@ def run_analyze_acc(input_dir: str, output_dir: str):
 
     papers = read_papers(input_dir)
     os.makedirs(output_dir, exist_ok=True)
+
+    # Handle no papers found
+    if not papers:
+        print("No papers to analyze")
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        output_file = f"{output_dir}/{date_str}-acc.md"
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write("# 无相关论文\n\n")
+            f.write("昨日没有相关论文。\n")
+        return output_file
 
     all_analyses = []
     date_str = datetime.now().strftime("%Y-%m-%d")
@@ -203,16 +230,21 @@ def run_summarize_and_publish(input_dir: str):
     # Read all analysis files
     analyses = read_analysis_files(input_dir)
 
-    # Combine analyses
-    combined = "\n\n".join([f"### {a['filename']}\n\n{a['content']}" for a in analyses])
+    # Handle no analyses found
+    if not analyses:
+        print("No analysis files found")
+        summary = "# 无相关论文\n\n昨日没有相关论文。"
+    else:
+        # Combine analyses
+        combined = "\n\n".join([f"### {a['filename']}\n\n{a['content']}" for a in analyses])
 
-    user_message = f"""
-    Integrate these analyses and create a summary:
+        user_message = f"""
+        Integrate these analyses and create a summary:
 
-    {combined}
-    """
+        {combined}
+        """
 
-    summary = call_claude(system_prompt, user_message)
+        summary = call_claude(system_prompt, user_message)
 
     # Publish to Notion
     sys.path.insert(0, ".claude/skills/notion-connector/scripts")
@@ -230,7 +262,8 @@ def main():
     parser.add_argument("--agent", required=True, help="Agent name")
     parser.add_argument("--input-dir", help="Input directory")
     parser.add_argument("--output-dir", help="Output directory")
-    parser.add_argument("--date", help="Paper date (YYYY-MM-DD)")
+    parser.add_argument("--start-date", help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end-date", help="End date (YYYY-MM-DD)")
     parser.add_argument("--publish-notion", action="store_true", help="Publish to Notion")
 
     args = parser.parse_args()
@@ -239,7 +272,7 @@ def main():
     sys.path.insert(0, ".")
 
     if args.agent == "analyze_pri":
-        run_analyze_pri(args.output_dir or "papers/", args.date)
+        run_analyze_pri(args.output_dir or "papers/", args.start_date, args.end_date)
 
     elif args.agent == "analyze_acc":
         run_analyze_acc(args.input_dir or "papers/", args.output_dir or "analysis/")

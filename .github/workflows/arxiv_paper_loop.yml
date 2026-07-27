@@ -6,8 +6,12 @@ on:
     - cron: '0 8 * * 2-6'
   workflow_dispatch:  # 允许手动触发
     inputs:
-      date:
-        description: 'Paper date (YYYY-MM-DD), leave empty for yesterday'
+      start_date:
+        description: 'Start date (YYYY-MM-DD), leave empty for last 24 days'
+        required: false
+        type: string
+      end_date:
+        description: 'End date (YYYY-MM-DD), leave empty for today'
         required: false
         type: string
 
@@ -38,10 +42,13 @@ jobs:
       - name: Set date
         id: date
         run: |
-          if [ -n "${{ inputs.date }}" ]; then
-            echo "paper_date=${{ inputs.date }}" >> $GITHUB_OUTPUT
+          if [ -n "${{ inputs.start_date }}" ] && [ -n "${{ inputs.end_date }}" ]; then
+            echo "start_date=${{ inputs.start_date }}" >> $GITHUB_OUTPUT
+            echo "end_date=${{ inputs.end_date }}" >> $GITHUB_OUTPUT
           else
-            echo "paper_date=$(date -d 'yesterday' +%Y-%m-%d)" >> $GITHUB_OUTPUT
+            # Default: search last 24 days (today - 24 to today)
+            echo "start_date=$(date -d 'today -24 days' +%Y-%m-%d)" >> $GITHUB_OUTPUT
+            echo "end_date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
 
       - name: Run analyze_pri agent
@@ -50,13 +57,18 @@ jobs:
           python scripts/run_agent.py \
             --agent analyze_pri \
             --output-dir papers/ \
-            --date ${{ steps.date.outputs.paper_date }}
+            --start-date ${{ steps.date.outputs.start_date }} \
+            --end-date ${{ steps.date.outputs.end_date }}
 
       - name: Count papers
         id: count
         run: |
-          count=$(ls papers/*.pdf 2>/dev/null | wc -l || echo "0")
-          echo "count=$count" >> $GITHUB_OUTPUT
+          if [ -f "papers/.no_papers" ]; then
+            echo "count=0" >> $GITHUB_OUTPUT
+          else
+            count=$(ls papers/*.pdf 2>/dev/null | wc -l || echo "0")
+            echo "count=$count" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload papers artifact
         uses: actions/upload-artifact@v4
