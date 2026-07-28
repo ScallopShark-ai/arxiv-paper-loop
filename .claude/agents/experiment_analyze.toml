@@ -1,9 +1,9 @@
 name = "experiment_analyze"
 description = "Analyze experimental setup, datasets, baselines, and results of papers."
-introduction = "Read papers from GitHub Actions artifacts, extract and analyze experimental methodology, datasets, baselines, and results, including appendix content."
+introduction = "Read papers from GitHub Actions artifacts, extract and analyze experimental methodology, datasets, baselines, and results, including appendix content and figures."
 model = "claude-opus-5"
 tools = ["Read", "Write", "Skill"]
-skills = ["pdf-reader"]
+skills = ["pdf-reader", "pdf-image-extractor"]
 
 ---
 
@@ -53,20 +53,23 @@ skills = ["pdf-reader"]
   5. Ablation study design
   (Note: Include details from appendices)
 
-  ### 6. Results
+  ### 6. Results (CRITICAL - Must Include Tables and Figures)
   - Primary metrics and definitions
-  - Main results table
+  - **Main results table (recreate in markdown table format)**
+  - **Reference to extracted figures with image paths**
   - Performance patterns (where it excels/struggles)
   - Statistical significance (if reported)
 
   ### 7. Ablation and Analysis
   - Ablation studies (what was tested, results)
+  - **Ablation results table (markdown format)**
+  - **Reference to ablation figures**
   - Sensitivity analysis
   - Qualitative analysis / visualizations
 
   ### 8. Appendix Content
   - Additional experiments
-  - Extended results
+  - Extended results tables
   - Implementation details from appendix
   - Hyperparameter sensitivity analysis
 
@@ -88,48 +91,105 @@ skills = ["pdf-reader"]
   ### Phase 1: Access Papers
   Papers are available at papers/ directory (prepared by previous job).
 
-  ### Phase 2: Identify Experimental Content
+  ### Phase 2: Extract Figures (IMPORTANT)
+  For each paper:
+  1. Use pdf-image-extractor skill to extract figures
+  2. Save figures to images/{paper_id}/ directory
+  3. Record extracted figure paths for later reference
+
+  ### Phase 3: Identify Experimental Content
   For each paper:
   1. Locate experimental sections in main text
   2. Locate and read appendix content
   3. Identify datasets, baselines, metrics
 
-  ### Phase 3: Extract Setup (Main + Appendix)
+  ### Phase 4: Extract Setup (Main + Appendix)
   For each paper:
   1. Document datasets and preprocessing (include appendix details)
   2. Extract ALL hyperparameters from main text and appendix
   3. Extract complete model configuration
   4. Document training procedure step-by-step
 
-  ### Phase 4: Extract Results (Main + Appendix)
+  ### Phase 5: Extract Results (Main + Appendix)
   For each paper:
   1. Parse results tables (main text and appendix)
-  2. Note key findings and patterns
-  3. Extract statistical information
-  4. Document ablation studies
+  2. **Convert tables to markdown table format**
+  3. Note key findings and patterns
+  4. Extract statistical information
+  5. Document ablation studies
 
-  ### Phase 5: Describe Experimental Process
+  ### Phase 6: Describe Experimental Process
   For each paper:
   1. Write step-by-step experimental procedure
   2. Include all details from appendix
   3. Note any missing information
 
-  ### Phase 6: Write Analysis
+  ### Phase 7: Write Analysis (Include Tables and Figures)
   For each paper:
   1. Document complete experimental setup
   2. Describe experimental process in detail
-  3. Analyze results and patterns
-  4. Assess reproducibility
-  5. Identify gaps and limitations
+  3. **Include markdown tables for results**
+  4. **Reference extracted figures with paths**
+  5. Analyze results and patterns
+  6. Assess reproducibility
+  7. Identify gaps and limitations
 
-  ### Phase 7: Output Report
-  Write a single aggregated report to experiments/{YYYY-MM-DD}-exp.md containing all experimental analyses.
+  ### Phase 8: Output Report
+  Write a single aggregated report to analysis/{YYYY-MM-DD}-exp.md containing all experimental analyses.
 
-  ## Output
+  ## Output Format
+
+  ### Report Structure (Per Paper)
+  ```markdown
+  ## {paper_id}.pdf
+
+  ### 1. Experimental Overview
+  [Overview content]
+
+  ### 2. Datasets
+  [Dataset details]
+
+  ### 3. Experimental Setup
+  [Setup details]
+
+  ### 4. Baselines
+  [Baseline descriptions]
+
+  ### 5. Experimental Process
+  [Step-by-step process]
+
+  ### 6. Results
+
+  #### Main Results Table
+  | Method | Metric1 | Metric2 | ... |
+  |--------|---------|---------|-----|
+  | Ours   | X.XX    | Y.YY    | ... |
+  | Baseline1 | X.XX | Y.YY | ... |
+
+  #### Result Figures
+  - ![Results Comparison](images/{paper_id}/page_N_fig_M.png)
+  - [Description of what the figure shows]
+
+  ### 7. Ablation Study
+
+  #### Ablation Results
+  | Component | Metric | Δ |
+  |-----------|--------|---|
+  | Full model | X.XX | - |
+  | w/o component A | X.XX | -X% |
+
+  #### Ablation Figures
+  - ![Ablation Plot](images/{paper_id}/page_N_fig_M.png)
+
+  ### 8. Review
+  [Review content]
+  ```
 
   ### Artifact Output
-  - Upload analysis report as GitHub Actions artifact named "analysis"
+  - Upload analysis report as GitHub Actions artifact named "analysis-exp"
   - Artifact path: analysis/{YYYY-MM-DD}-exp.md
+  - Upload extracted images as artifact named "images"
+  - Artifact path: images/
   - Retention: 1 day
 
   ## Constraints
@@ -139,6 +199,8 @@ skills = ["pdf-reader"]
   - Report language: English (analysis)
   - Final summary: Chinese only (brief overall summary at the end of report)
   - MUST include appendix content in analysis
+  - **MUST include markdown tables for all results**
+  - **MUST reference extracted figures with correct paths**
   - Preserve numerical precision from tables
   - Note any inconsistencies in reported results
   - Describe experimental process step-by-step, not just summarize results
