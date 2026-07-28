@@ -154,35 +154,13 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
     # Search papers - use keyword search instead of date range (more reliable)
     client = ArxivClient()
 
-    # Search by keywords relevant to RL, Agent, Human Behavior, Game AI Bot
-    keywords = [
-        "reinforcement learning",
-        "RLHF",
-        "preference learning",
-        "preference RL",
-        "reward learning",
-        "human feedback",
-        "large language model agent",
-        "LLM agent",
-        "autonomous agent",
-        "AI agent",
-        "human behavior",
-        "human-AI interaction",
-        "game AI",
-        "game bot",
-        "game agent",
-        "training loop",
-        "RL loop",
-        "agent loop",
-        "self-play",
-        "harness"
-    ]
-
-    print("Searching with keywords...")
+    # Search papers by categories only (no keyword filter) - broader search
+    # Categories: cs.LG, cs.AI, cs.CL, cs.NE, cs.CV, cs.RO
+    print("Searching papers by categories (broad AI/ML search)...")
     papers = client.search(
-        categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE"],
-        keywords=keywords,
-        max_results=50
+        categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE", "cs.CV", "cs.RO"],
+        keywords=[],  # No keyword filter - broad search
+        max_results=100  # Get more papers since we filter by date
     )
 
     # Filter papers by submission date locally
@@ -202,7 +180,7 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
                 continue
 
         papers = filtered_papers
-        print(f"Filtered to {len(papers)} papers in date range")
+        print(f"Filtered to {len(papers)} papers in date range {start_date} to {end_date}")
 
     # Create directories
     os.makedirs(output_dir, exist_ok=True)
@@ -216,10 +194,15 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
             f.write(f"No papers found for date range {start_date} to {end_date}")
         return []
 
-    # Filter papers using Claude
+    # Filter papers using Claude - check up to 20 papers, download max 5
     downloaded = []
 
-    for paper in papers[:30]:
+    for paper in papers[:20]:
+        # Stop if we already have 5 papers
+        if len(downloaded) >= 5:
+            print(f"Reached limit of 5 papers, stopping")
+            break
+
         user_message = f"""
         Evaluate this paper based on the screening criteria:
 

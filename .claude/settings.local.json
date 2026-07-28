@@ -12,7 +12,9 @@
       "Bash(git push *)",
       "Bash(gh workflow *)",
       "Bash(gh run *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "WebSearch",
+      "WebFetch(domain:arxiv.org)"
     ]
   }
 }

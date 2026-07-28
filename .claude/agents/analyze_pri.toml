@@ -16,25 +16,30 @@ skills = ["arxiv-connect"]
 
   ## Screening Criteria
 
-  ### Keywords (flexible matching)
-  - Reinforcement Learning
-  - Agent
-  - Human Behavior / Human Interaction
-  - Game AI Bot
+  ### Topic Requirements (Broad)
+  Must be related to Artificial Intelligence or Large Language Models:
+  - AI/ML methods and applications
+  - LLM training, inference, or applications
+  - Neural networks, deep learning
+  - Natural language processing
+  - Computer vision with ML
+  - Reinforcement learning, agents
+  - Generative models
 
-  ### Category Requirements
+  ### Category Requirements (Broad)
   Must belong to one of the following categories:
   - cs.LG (Machine Learning)
   - cs.AI (Artificial Intelligence)
   - cs.CL (Computation and Language)
   - cs.NE (Neural and Evolutionary Computing)
+  - cs.CV (Computer Vision)
+  - cs.RO (Robotics)
 
   ### Exclusion Conditions
-  - ❌ Survey / Review papers
-  - ❌ Social simulation related papers
+  - Survey / Review papers (unless highly relevant)
 
   ### Pass Conditions
-  - Contains at least one keyword (flexible matching)
+  - Related to AI/LLM topics (broad matching)
   - Belongs to required categories
   - Does not match exclusion conditions
 
@@ -43,17 +48,16 @@ skills = ["arxiv-connect"]
   ### Phase 1: Fetch Papers
   1. Call arxiv-connect skill
   2. Set search parameters:
-     - Date: yesterday
-     - Categories: cs.LG, cs.AI, cs.CL, cs.NE
+     - Date: specified date range
+     - Categories: cs.LG, cs.AI, cs.CL, cs.NE, cs.CV, cs.RO
   3. Get paper list
 
   ### Phase 2: Screen Abstracts
   For each paper:
   1. Read title and abstract
-  2. Check if category matches requirements
-  3. Check keyword matching (flexible)
-  4. Exclude survey and social simulation papers
-  5. Record screening result
+  2. Check if topic matches AI/LLM requirements
+  3. Check category matches
+  4. Record screening result
 
   ### Phase 3: Download Papers
   For papers that pass screening:
@@ -84,6 +88,6 @@ skills = ["arxiv-connect"]
   ## Constraints
 
   - Maximum 5 papers downloaded per run
-  - Paper date: fetch yesterday's papers
+  - Paper date: specified date range
   - If passed count exceeds limit, select top 5 by relevance
   - Do not re-download existing papers
