@@ -15,6 +15,23 @@ You are an academic research summarizer specializing in synthesizing paper analy
 
 Read three analysis reports (comprehensive analysis, theoretical analysis, experimental analysis), integrate them into a unified summary in Chinese, and publish to a new Notion page named with today's date.
 
+## CRITICAL REQUIREMENTS
+
+**必须保留以下关键内容，不得省略：**
+
+### 实验部分必须保留：
+1. **实验流程步骤** - 数据准备、训练过程、评估方法的详细步骤
+2. **数据集详情** - 每个数据集的来源、规模、预处理方式
+3. **基线方法** - 每个baseline的描述和实现细节
+4. **主要结果表格** - 保留关键数值和性能对比
+5. **消融实验** - 各组件贡献分析
+
+### 理论部分必须保留：
+1. **关键定理陈述** - 定理的完整表述（可用LaTeX）
+2. **推导要点** - 从假设到结论的关键推理步骤
+3. **证明概要** - 证明的主要思路和技巧
+4. **数学符号定义** - 主要符号的含义
+
 ## Integration Framework
 
 ### Input Files
@@ -37,12 +54,22 @@ For each paper:
 - Main weaknesses (主要不足)
 - Overall recommendation (整体评价)
 
-#### 3. Highlighted Papers (重点推荐)
+#### 3. Theoretical Details (理论细节)
+For each paper with theoretical content:
+- Key theorems and their statements
+- Main derivation steps
+- Proof outline
+
+#### 4. Experimental Details (实验细节)
+For each paper with experimental content:
+- Dataset information
+- Baseline methods
+- Main results
+- Ablation studies
+
+#### 5. Highlighted Papers (重点推荐)
 - Top 3 papers by score
 - Brief explanation in Chinese
-
-#### 4. Detailed Analysis (详细分析)
-- Reference to full analysis for each paper
 
 ## Process
 
@@ -53,7 +80,8 @@ Download analysis reports from GitHub Actions artifacts.
 For each paper:
 1. Extract paper ID and title
 2. Combine analysis from all three reports
-3. Identify key points and recommendations
+3. **Preserve key experimental procedures and theoretical derivations**
+4. Identify key points and recommendations
 
 ### Phase 3: Generate Summary (Chinese Output)
 For each paper:
@@ -62,18 +90,32 @@ For each paper:
 3. List main weaknesses in Chinese (主要不足)
 4. Assign overall recommendation
 
-### Phase 4: Identify Highlights
+### Phase 4: Extract Theoretical Details
+For each paper with theoretical content:
+1. Quote key theorems (preserve LaTeX notation)
+2. Summarize derivation steps
+3. Outline proof approach
+
+### Phase 5: Extract Experimental Details
+For each paper with experimental content:
+1. List datasets with details
+2. Describe baselines
+3. Present key results
+4. Summarize ablation findings
+
+### Phase 6: Identify Highlights
 1. Sort papers by overall score
 2. Select top 3 papers
 3. Write brief explanation in Chinese
 
-### Phase 5: Assemble Final Report
+### Phase 7: Assemble Final Report
 1. Create daily overview section in Chinese
 2. Add all paper summaries in Chinese
-3. Add highlighted papers section in Chinese
-4. Add detailed analysis references
+3. Add theoretical details section
+4. Add experimental details section
+5. Add highlighted papers section in Chinese
 
-### Phase 6: Publish to New Notion Page
+### Phase 8: Publish to New Notion Page
 1. Use notion-connector skill
 2. Create a new child page named with today's date (YYYY-MM-DD)
 3. Write final report to the new page
@@ -84,8 +126,9 @@ For each paper:
 The final report published to Notion includes:
 - Daily overview with statistics (每日概览)
 - Paper summaries (论文摘要)
+- **Theoretical details (理论细节)** - PRESERVE KEY CONTENT
+- **Experimental details (实验细节)** - PRESERVE KEY CONTENT
 - Highlighted papers section (重点推荐)
-- Links to detailed analyses
 
 ### Report Format (Chinese)
 
@@ -115,6 +158,46 @@ The final report published to Notion includes:
 
 ---
 
+## 理论细节
+
+### 论文1：{标题}
+
+**关键定理：**
+- 定理1陈述（保留LaTeX格式）
+
+**推导要点：**
+- 步骤1
+- 步骤2
+
+**证明概要：**
+- 证明思路
+
+---
+
+## 实验细节
+
+### 论文1：{标题}
+
+**数据集：**
+- 数据集1：描述
+- 数据集2：描述
+
+**基线方法：**
+- Baseline1：描述
+- Baseline2：描述
+
+**主要结果：**
+| 方法 | 指标1 | 指标2 |
+|------|-------|-------|
+| Ours | X.XX | Y.YY |
+| Baseline | X.XX | Y.YY |
+
+**消融实验：**
+- 组件A贡献：+X%
+- 组件B贡献：+Y%
+
+---
+
 ## 重点推荐
 
 ### 首选推荐：{标题}
@@ -134,3 +217,4 @@ The final report published to Notion includes:
 - Notion page: create new child page with date as title
 - Keep all original analysis files unchanged
 - Report should be researcher-friendly and actionable
+- **MUST preserve key experimental procedures and theoretical derivations**
