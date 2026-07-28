@@ -13,17 +13,6 @@ on:
           - experiment_analyze
           - summarize_and_publish
           - all_analysis
-      input_source:
-        description: 'Input source: "upload" (upload files) or "run_id" (from previous run)'
-        required: true
-        type: choice
-        options:
-          - upload
-          - run_id
-      run_id:
-        description: 'Previous run ID (required if input_source is run_id)'
-        required: false
-        type: string
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -32,64 +21,7 @@ env:
   NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
 
 jobs:
-  prepare-inputs:
-    runs-on: ubuntu-latest
-    outputs:
-      has_papers: ${{ steps.check.outputs.has_papers }}
-      has_analysis: ${{ steps.check.outputs.has_analysis }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Create directories
-        run: mkdir -p papers/ analysis/
-
-      - name: Download artifacts from previous run
-        if: ${{ inputs.input_source == 'run_id' && inputs.run_id != '' }}
-        run: |
-          # Download papers
-          gh run download ${{ inputs.run_id }} --pattern "papers" --dir . --repo ${{ github.repository }} || true
-          # Download analysis
-          gh run download ${{ inputs.run_id }} --pattern "analysis-*" --dir analysis/ --repo ${{ github.repository }} || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check available files
-        id: check
-        run: |
-          if [ -d "papers" ] && [ "$(ls papers/*.pdf 2>/dev/null | wc -l)" -gt 0 ]; then
-            echo "has_papers=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_papers=false" >> $GITHUB_OUTPUT
-          fi
-          if [ -d "analysis" ] && [ "$(ls analysis/*.md 2>/dev/null | wc -l)" -gt 0 ]; then
-            echo "has_analysis=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_analysis=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Upload papers artifact
-        if: ${{ steps.check.outputs.has_papers == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: papers
-          path: papers/
-          retention-days: 1
-
-      - name: Upload analysis artifact
-        if: ${{ steps.check.outputs.has_analysis == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: analysis
-          path: analysis/
-          retention-days: 1
-
   test-analyze-acc:
-    needs: prepare-inputs
     if: ${{ inputs.agent == 'analyze_acc' || inputs.agent == 'all_analysis' }}
     runs-on: ubuntu-latest
     steps:
@@ -100,16 +32,11 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install anthropic marker-pdf pymupdf pdfplumber
-      - name: Download papers
-        uses: actions/download-artifact@v4
-        with:
-          name: papers
-          path: papers/
       - name: Run analyze_acc
         run: |
           python scripts/run_agent.py \
             --agent analyze_acc \
-            --input-dir papers/ \
+            --input-dir test_data/papers/ \
             --output-dir analysis/ \
             --save-temp
       - name: Upload result
@@ -120,7 +47,6 @@ jobs:
           retention-days: 1
 
   test-theory-deri:
-    needs: prepare-inputs
     if: ${{ inputs.agent == 'theory_deri' || inputs.agent == 'all_analysis' }}
     runs-on: ubuntu-latest
     steps:
@@ -131,16 +57,11 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install anthropic marker-pdf pymupdf pdfplumber
-      - name: Download papers
-        uses: actions/download-artifact@v4
-        with:
-          name: papers
-          path: papers/
       - name: Run theory_deri
         run: |
           python scripts/run_agent.py \
             --agent theory_deri \
-            --input-dir papers/ \
+            --input-dir test_data/papers/ \
             --output-dir analysis/ \
             --save-temp
       - name: Upload result
@@ -151,7 +72,6 @@ jobs:
           retention-days: 1
 
   test-experiment-analyze:
-    needs: prepare-inputs
     if: ${{ inputs.agent == 'experiment_analyze' || inputs.agent == 'all_analysis' }}
     runs-on: ubuntu-latest
     steps:
@@ -162,16 +82,11 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install anthropic marker-pdf pymupdf pdfplumber
-      - name: Download papers
-        uses: actions/download-artifact@v4
-        with:
-          name: papers
-          path: papers/
       - name: Run experiment_analyze
         run: |
           python scripts/run_agent.py \
             --agent experiment_analyze \
-            --input-dir papers/ \
+            --input-dir test_data/papers/ \
             --output-dir analysis/ \
             --save-temp
       - name: Upload result
@@ -182,7 +97,6 @@ jobs:
           retention-days: 1
 
   test-summarize:
-    needs: prepare-inputs
     if: ${{ inputs.agent == 'summarize_and_publish' }}
     runs-on: ubuntu-latest
     steps:
@@ -193,16 +107,11 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install anthropic notion-client
-      - name: Download analysis
-        uses: actions/download-artifact@v4
-        with:
-          name: analysis
-          path: analysis/
       - name: Run summarize_and_publish
         run: |
           python scripts/run_agent.py \
             --agent summarize_and_publish \
-            --input-dir analysis/ \
+            --input-dir test_data/analysis/ \
             --save-temp \
             --publish-notion
       - name: Upload result
