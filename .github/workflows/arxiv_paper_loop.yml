@@ -22,6 +22,10 @@ on:
         description: 'Direct download mode: comma-separated arxiv IDs (e.g., "2607.12345,2607.12346")'
         required: false
         type: string
+      artifact_run_id:
+        description: 'Use existing artifacts from a previous run (skip analysis, only publish)'
+        required: false
+        type: string
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -32,6 +36,7 @@ env:
 jobs:
   analyze_pri:
     runs-on: ubuntu-latest
+    if: ${{ inputs.artifact_run_id == '' }}
     outputs:
       paper_count: ${{ steps.count.outputs.count }}
     steps:
@@ -93,6 +98,7 @@ jobs:
 
   analyze_acc:
     needs: analyze_pri
+    if: ${{ inputs.artifact_run_id == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -130,6 +136,7 @@ jobs:
 
   theory_deri:
     needs: analyze_pri
+    if: ${{ inputs.artifact_run_id == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -167,6 +174,7 @@ jobs:
 
   experiment_analyze:
     needs: analyze_pri
+    if: ${{ inputs.artifact_run_id == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -204,6 +212,7 @@ jobs:
 
   summarize_and_publish:
     needs: [analyze_acc, theory_deri, experiment_analyze]
+    if: ${{ always() && (inputs.artifact_run_id != '' || needs.analyze_acc.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -213,7 +222,17 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install anthropic notion-client
+      - name: Download artifacts from previous run
+        if: ${{ inputs.artifact_run_id != '' }}
+        run: |
+          gh run download ${{ inputs.artifact_run_id }} \
+            --pattern "analysis-*" \
+            --dir analysis/ \
+            --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Download all analysis artifacts
+        if: ${{ inputs.artifact_run_id == '' }}
         uses: actions/download-artifact@v4
         with:
           pattern: analysis-*
