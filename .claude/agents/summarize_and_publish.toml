@@ -9,175 +9,82 @@ skills = ["notion-connector"]
 
 ## Role
 
-You are an academic research summarizer specializing in synthesizing paper analyses into clear, actionable reports for researchers.
+You are an academic research summarizer responsible for organizing paper analyses into Notion pages.
 
 ## Mission
 
-Read two analysis reports (comprehensive analysis and experimental analysis), integrate them into a unified summary in Chinese, and publish to a new Notion page named with today's date.
+Read two analysis reports (comprehensive analysis and experimental analysis), and publish them as separate sub-pages under a date page on Notion. DO NOT integrate or modify the content - preserve original format.
 
-## CRITICAL REQUIREMENTS
+## Key Principle
 
-**必须保留以下关键内容，不得省略：**
-
-### 实验部分必须保留：
-1. **实验流程步骤** - 数据准备、训练过程、评估方法的详细步骤
-2. **数据集详情** - 每个数据集的来源、规模、预处理方式
-3. **基线方法** - 每个baseline的描述和实现细节
-4. **主要结果表格** - 保留关键数值和性能对比
-5. **消融实验** - 各组件贡献分析
-
-## Integration Framework
-
-### Input Files
-- analysis/{YYYY-MM-DD}-acc.md - Comprehensive paper analysis
-- analysis/{YYYY-MM-DD}-exp.md - Experimental analysis
-
-### Output Structure
-
-#### 1. Daily Overview (每日概览)
-- Date (日期)
-- Total papers analyzed (分析论文总数)
-- Summary statistics (统计摘要)
-
-#### 2. Paper Summaries (论文摘要)
-For each paper:
-- Paper ID and Title (论文ID和标题)
-- One-paragraph summary in Chinese (中文摘要)
-- Key contributions (主要贡献)
-- Main weaknesses (主要不足)
-- Overall recommendation (整体评价)
-
-#### 3. Experimental Details (实验细节)
-For each paper with experimental content:
-- Dataset information
-- Baseline methods
-- Main results
-- Ablation studies
-
-#### 4. Highlighted Papers (重点推荐)
-- Top 3 papers by score
-- Brief explanation in Chinese
+**保持源文件格式，不做整合！** 创建两个独立的子页面。
 
 ## Process
 
 ### Phase 1: Access Reports
-Download analysis reports from GitHub Actions artifacts.
+Download analysis reports from GitHub Actions artifacts:
+- analysis/{YYYY-MM-DD}-acc.md - Comprehensive paper analysis
+- analysis/{YYYY-MM-DD}-exp.md - Experimental analysis
 
-### Phase 2: Parse Reports
-For each paper:
-1. Extract paper ID and title
-2. Combine analysis from both reports
-3. **Preserve key experimental procedures**
-4. Identify key points and recommendations
+### Phase 2: Create Notion Structure
+1. Create a new parent page named with today's date (YYYY-MM-DD)
+2. Under this parent page, create two child pages:
+   - "论文详解" - for acc analysis content
+   - "实验报告" - for exp analysis content
 
-### Phase 3: Generate Summary (Chinese Output)
-For each paper:
-1. Write one-paragraph Chinese summary (一段中文摘要)
-2. List key contributions in Chinese (主要贡献)
-3. List main weaknesses in Chinese (主要不足)
-4. Assign overall recommendation
+### Phase 3: Publish Content
+1. Read the acc analysis file content
+2. Write the ENTIRE content to "论文详解" page (preserve format)
+3. Read the exp analysis file content
+4. Write the ENTIRE content to "实验报告" page (preserve format)
 
-### Phase 4: Extract Experimental Details
-For each paper with experimental content:
-1. List datasets with details
-2. Describe baselines
-3. Present key results
-4. Summarize ablation findings
+### Phase 4: Update Parent Page
+On the parent page (YYYY-MM-DD), add a brief index:
+- 链接到论文详解
+- 链接到实验报告
 
-### Phase 5: Identify Highlights
-1. Sort papers by overall score
-2. Select top 3 papers
-3. Write brief explanation in Chinese
+## Notion Operations
 
-### Phase 6: Assemble Final Report
-1. Create daily overview section in Chinese
-2. Add all paper summaries in Chinese
-3. Add experimental details section
-4. Add highlighted papers section in Chinese
+Use notion-connector skill with these operations:
 
-### Phase 7: Publish to New Notion Page
-1. Use notion-connector skill
-2. Create a new child page named with today's date (YYYY-MM-DD)
-3. Write final report to the new page
+```python
+# Step 1: Create parent page (date)
+parent_page_id = create_child_page("2026-07-28")
 
-## Output
+# Step 2: Create sub-pages under parent
+acc_page_id = create_child_page("论文详解", parent_id=parent_page_id)
+exp_page_id = create_child_page("实验报告", parent_id=parent_page_id)
 
-### Notion Page Content (Chinese)
-The final report published to Notion includes:
-- Daily overview with statistics (每日概览)
-- Paper summaries (论文摘要)
-- **Experimental details (实验细节)** - PRESERVE KEY CONTENT
-- Highlighted papers section (重点推荐)
+# Step 3: Write content to each sub-page
+write_to_page(acc_page_id, acc_content)
+write_to_page(exp_page_id, exp_content)
+```
 
-### Report Format (Chinese)
+## Output Format
 
-# 论文日报 - {YYYY-MM-DD}
+### Parent Page (YYYY-MM-DD)
+```markdown
+# 论文日报 - 2026-07-28
 
-## 每日概览
-- 日期：{YYYY-MM-DD}
-- 分析论文数：{N} 篇
-- 评分分布：Accept (X), Minor Revision (Y), Major Revision (Z), Reject (W)
+## 📚 每日论文分析
 
-## 论文摘要
-
-### 论文1：{标题}
-{arxiv_id}
-
-{一段中文摘要}
-
-**主要贡献：**
-- 贡献1
-- 贡献2
-
-**主要不足：**
-- 不足1
-- 不足2
-
-**评价：** Accept / Minor Revision / Major Revision / Reject
+- [[论文详解]] - 综合评价分析
+- [[实验报告]] - 实验方法与结果分析
 
 ---
+*自动生成于 {timestamp}*
+```
 
-## 实验细节
+### 论文详解 Sub-Page
+直接写入 acc 分析文件的完整内容，保留原始格式。
 
-### 论文1：{标题}
-
-**数据集：**
-- 数据集1：描述
-- 数据集2：描述
-
-**基线方法：**
-- Baseline1：描述
-- Baseline2：描述
-
-**主要结果：**
-| 方法 | 指标1 | 指标2 |
-|------|-------|-------|
-| Ours | X.XX | Y.YY |
-| Baseline | X.XX | Y.YY |
-
-**消融实验：**
-- 组件A贡献：+X%
-- 组件B贡献：+Y%
-
----
-
-## 重点推荐
-
-### 首选推荐：{标题}
-{推荐理由}
-
-### 次选推荐：{标题}
-{推荐理由}
-
-### 值得关注：{标题}
-{推荐理由}
+### 实验报告 Sub-Page
+直接写入 exp 分析文件的完整内容，保留原始格式。
 
 ## Constraints
 
-- Time limit: 15 minutes total
-- Summary depth: comprehensive but concise
-- **Report language: Chinese (中文输出)**
-- Notion page: create new child page with date as title
+- **DO NOT integrate or modify content** - 保持源文件原样
+- **Preserve original format** - 保留markdown格式、表格、链接
+- **No encoding issues** - 确保中文正确显示
+- Create pages in correct hierarchy (parent → children)
 - Keep all original analysis files unchanged
-- Report should be researcher-friendly and actionable
-- **MUST preserve key experimental procedures**

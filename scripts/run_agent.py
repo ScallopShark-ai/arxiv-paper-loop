@@ -329,7 +329,7 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
 
 
 def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = False):
-    """Run summarize_and_publish agent - integrate and publish to Notion."""
+    """Run summarize_and_publish agent - create two sub-pages under date page."""
     config = load_agent_config("summarize_and_publish")
     system_prompt = get_system_prompt(config)
     model = config.get("model", "claude-sonnet-4-20250514")
@@ -345,81 +345,69 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
 
     print(f"Found: {len(acc_analyses)} acc, {len(exp_analyses)} exp analyses")
 
-    # Handle no analyses found
-    if not analyses:
-        print("No analysis files found")
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        summary = f"""# 论文日报 - {date_str}
-
-## 每日概览
-- 日期：{date_str}
-- 分析论文数：0 篇
-
-## 论文摘要
-
-昨日没有发现符合筛选条件的相关论文。
-
-## 重点推荐
-
-暂无推荐论文。
-
-## 详细分析
-
-由于没有相关论文，暂无详细分析内容。
-
----
-
-**说明：** 本日报基于arXiv每日更新的论文进行自动分析和筛选。
-"""
-    else:
-        # Build combined input with clear sections
-        combined_input = "# 输入分析报告\n\n"
-
-        if acc_analyses:
-            combined_input += "## 综合评价分析 (acc)\n\n"
-            for a in acc_analyses:
-                combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
-
-        if exp_analyses:
-            combined_input += "## 实验分析 (exp)\n\n"
-            for a in exp_analyses:
-                combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
-
-        user_message = f"""请根据以下分析报告，生成一份完整的中文论文日报。
-
-{combined_input}
-
-输出要求：
-1. 必须使用中文输出所有内容
-2. 必须整合以下所有部分：
-   - 综合评价部分（来自acc分析）
-   - 实验分析部分（来自exp分析）
-3. 按照 agent 配置中的格式输出
-4. 包括每日概览、论文摘要、重点推荐、详细分析等部分
-5. 每篇论文都要整合其acc、exp两方面的分析"""
-
-        summary = call_claude(system_prompt, user_message, model)
-
-    # Save summary to temp folder only if save_temp is True
-    if save_temp:
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        temp_summary_file = f"{temp_dir}/{date_str}-summary.md"
-        os.makedirs(temp_dir, exist_ok=True)
-        with open(temp_summary_file, "w", encoding="utf-8") as f:
-            f.write(summary)
-        print(f"Saved summary to: {temp_summary_file}")
-
-    # Publish to Notion
+    # Import notion functions
     sys.path.insert(0, ".claude/skills/notion-connector/scripts")
     from notion_publisher import create_child_page, write_to_page
 
     date_str = datetime.now().strftime("%Y-%m-%d")
-    print(f"Creating new Notion page for: {date_str}")
-    page_id = create_child_page(date_str)
-    write_to_page(page_id, summary)
 
-    print(f"Published to Notion! Page ID: {page_id}")
-    return summary
+    # Handle no analyses found
+    if not analyses:
+        print("No analysis files found")
+
+        # Create parent page
+        print(f"Creating parent page: {date_str}")
+        parent_page_id = create_child_page(date_str)
+
+        # Write empty state to parent
+        empty_content = f"""# 论文日报 - {date_str}
+
+## 📚 每日论文分析
+
+昨日没有发现符合筛选条件的相关论文。
+
+---
+*自动生成*
+"""
+        write_to_page(parent_page_id, empty_content)
+        print(f"Published empty state to Notion! Page ID: {parent_page_id}")
+        return
+
+    # Create parent page (date)
+    print(f"Creating parent page: {date_str}")
+    parent_page_id = create_child_page(date_str)
+
+    # Create and populate 论文详解 sub-page
+    if acc_analyses:
+        print("Creating 论文详解 sub-page...")
+        acc_page_id = create_child_page("论文详解", parent_id=parent_page_id)
+        acc_content = "\n\n---\n\n".join([a['content'] for a in acc_analyses])
+        write_to_page(acc_page_id, acc_content)
+        print(f"Written acc content to: {acc_page_id}")
+
+    # Create and populate 实验报告 sub-page
+    if exp_analyses:
+        print("Creating 实验报告 sub-page...")
+        exp_page_id = create_child_page("实验报告", parent_id=parent_page_id)
+        exp_content = "\n\n---\n\n".join([a['content'] for a in exp_analyses])
+        write_to_page(exp_page_id, exp_content)
+        print(f"Written exp content to: {exp_page_id}")
+
+    # Update parent page with index
+    index_content = f"""# 论文日报 - {date_str}
+
+## 📚 每日论文分析
+
+- 论文详解 - 综合评价分析
+- 实验报告 - 实验方法与结果分析
+
+---
+*自动生成*
+"""
+    write_to_page(parent_page_id, index_content)
+
+    print(f"Published to Notion! Parent Page ID: {parent_page_id}")
+    return parent_page_id
 
 
 def main():

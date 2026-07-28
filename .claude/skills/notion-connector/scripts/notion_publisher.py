@@ -134,22 +134,25 @@ class NotionClient:
         logger.info(f"Cleared {len(blocks)} blocks")
         return True
 
-    def create_child_page(self, title: str) -> str:
+    def create_child_page(self, title: str, parent_id: str = None) -> str:
         """
         Create a new child page under the designated parent page.
 
         Args:
             title: Title for the new page
+            parent_id: Parent page ID (uses self.page_id if not provided)
 
         Returns:
             ID of the newly created page
         """
         logger.info(f"Creating child page: {title}")
 
+        target_parent = parent_id if parent_id else self.page_id
+
         # Create the page
         response = self._retry(
             self.client.pages.create,
-            parent={"page_id": self.page_id},
+            parent={"page_id": target_parent},
             properties={
                 "title": {
                     "title": [{"type": "text", "text": {"content": title}}]
@@ -322,17 +325,18 @@ def clear_page() -> bool:
     """Clear all content from the designated page."""
     return get_client().clear_page()
 
-def create_child_page(title: str) -> str:
+def create_child_page(title: str, parent_id: str = None) -> str:
     """
     Create a new child page under the designated parent page.
 
     Args:
         title: Title for the new page
+        parent_id: Parent page ID (uses root page if not provided)
 
     Returns:
         ID of the newly created page
     """
-    return get_client().create_child_page(title)
+    return get_client().create_child_page(title, parent_id)
 
 def write_to_page(page_id: str, content: str) -> bool:
     """
