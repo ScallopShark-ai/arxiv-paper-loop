@@ -176,13 +176,20 @@ class NotionClient:
 
         blocks = self._markdown_to_blocks(content)
 
-        self._retry(
-            self.client.blocks.children.append,
-            block_id=page_id,
-            children=blocks
-        )
+        # Split into batches of 100 (Notion API limit)
+        batch_size = 100
+        total_blocks = len(blocks)
 
-        logger.info(f"Wrote {len(blocks)} blocks")
+        for i in range(0, total_blocks, batch_size):
+            batch = blocks[i:i + batch_size]
+            logger.info(f"Uploading batch {i // batch_size + 1} ({len(batch)} blocks)")
+            self._retry(
+                self.client.blocks.children.append,
+                block_id=page_id,
+                children=batch
+            )
+
+        logger.info(f"Wrote {total_blocks} blocks in {(total_blocks + batch_size - 1) // batch_size} batches")
         return True
 
     def _markdown_to_blocks(self, markdown: str) -> List[Dict]:
