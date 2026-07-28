@@ -83,23 +83,53 @@ def read_analysis_files(input_dir: str) -> list:
     return analyses
 
 
-def call_claude(system_prompt: str, user_message: str, model: str) -> str:
+def call_claude(system_prompt: str, user_message: str, model: str, max_retries: int = 2) -> str:
     """Call Claude API with specified model."""
+    import time
+
     client = anthropic.Anthropic(
         api_key=os.environ.get("ANTHROPIC_API_KEY"),
         base_url=os.environ.get("ANTHROPIC_BASE_URL")
     )
 
-    message = client.messages.create(
-        model=model,
-        max_tokens=16000,
-        system=system_prompt,
-        messages=[
-            {"role": "user", "content": user_message}
-        ]
-    )
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=16000,
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": user_message}
+                ]
+            )
 
-    return message.content[0].text
+            # Handle both regular text blocks and thinking blocks
+            result_parts = []
+            for block in message.content:
+                if hasattr(block, 'text'):
+                    result_parts.append(block.text)
+                elif hasattr(block, 'thinking'):
+                    # For thinking models, extract the thinking content if available
+                    result_parts.append(str(block))
+                else:
+                    result_parts.append(str(block))
+
+            return "\n".join(result_parts)
+
+        except anthropic.InternalServerError as e:
+            last_error = e
+            if "524" in str(e) or "timeout" in str(e).lower():
+                print(f"Timeout error (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                if attempt < max_retries:
+                    time.sleep(5)
+                    continue
+            raise
+        except Exception as e:
+            last_error = e
+            raise
+
+    raise last_error
 
 
 def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None, save_temp: bool = False):
@@ -249,13 +279,16 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
         from pdf_reader import read_pdf
         content = read_pdf(paper['path'])
 
+        # Reduce content length to avoid timeout (30000 chars instead of 50000)
+        content_preview = content[:30000] if len(content) > 30000 else content
+
         user_message = f"""
         Analyze this paper:
 
         Filename: {paper['filename']}
 
         Content:
-        {content[:50000]}
+        {content_preview}
         """
 
         analysis = call_claude(system_prompt, user_message, model)
