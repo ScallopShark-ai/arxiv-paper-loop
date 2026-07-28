@@ -132,7 +132,7 @@ def call_claude(system_prompt: str, user_message: str, model: str, max_retries: 
     raise last_error
 
 
-def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None, save_temp: bool = False):
+def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None, save_temp: bool = False, paper_ids: str = None):
     """Run analyze_pri agent - search and download papers."""
     sys.path.insert(0, ".claude/skills/arxiv-connect/scripts")
     from arxiv_client import ArxivClient
@@ -141,6 +141,29 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
     system_prompt = get_system_prompt(config)
     model = config.get("model", "claude-sonnet-4-20250514")
 
+    # Create directories
+    os.makedirs(output_dir, exist_ok=True)
+    if save_temp:
+        os.makedirs(temp_dir, exist_ok=True)
+
+    client = ArxivClient()
+
+    # Direct download mode: skip search, just download specified papers
+    if paper_ids:
+        print(f"Direct download mode: {paper_ids}")
+        downloaded = []
+        for arxiv_id in paper_ids.split(","):
+            arxiv_id = arxiv_id.strip()
+            if arxiv_id:
+                print(f"Downloading: {arxiv_id}")
+                client.download(arxiv_id, output_dir)
+                if save_temp:
+                    client.download(arxiv_id, temp_dir)
+                downloaded.append(arxiv_id)
+        print(f"Downloaded {len(downloaded)} papers")
+        return downloaded
+
+    # Normal search mode
     # Use provided date range or default to yesterday
     if start_date is None or end_date is None:
         from datetime import timedelta
@@ -151,16 +174,25 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
     print(f"Searching papers for date range: {start_date} to {end_date}")
     print(f"Using model: {model}")
 
-    # Search papers - use keyword search instead of date range (more reliable)
-    client = ArxivClient()
+    # Search by keywords relevant to RL, Agent, RLHF, etc.
+    keywords = [
+        "reinforcement learning",
+        "RLHF",
+        "preference learning",
+        "human feedback",
+        "reward learning",
+        "reward model",
+        "LLM agent",
+        "autonomous agent",
+        "game AI",
+        "self-play"
+    ]
 
-    # Search papers by categories only (no keyword filter) - broader search
-    # Categories: cs.LG, cs.AI, cs.CL, cs.NE, cs.CV, cs.RO
-    print("Searching papers by categories (broad AI/ML search)...")
+    print("Searching with keywords...")
     papers = client.search(
-        categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE", "cs.CV", "cs.RO"],
-        keywords=[],  # No keyword filter - broad search
-        max_results=100  # Get more papers since we filter by date
+        categories=["cs.LG", "cs.AI", "cs.CL", "cs.NE"],
+        keywords=keywords,
+        max_results=50
     )
 
     # Filter papers by submission date locally
@@ -405,6 +437,7 @@ def main():
     parser.add_argument("--end-date", help="End date (YYYY-MM-DD)")
     parser.add_argument("--save-temp", action="store_true", help="Save intermediate files to temp folder")
     parser.add_argument("--publish-notion", action="store_true", help="Publish to Notion")
+    parser.add_argument("--paper-ids", help="Direct download: comma-separated arxiv IDs")
 
     args = parser.parse_args()
 
@@ -412,7 +445,7 @@ def main():
     sys.path.insert(0, ".")
 
     if args.agent == "analyze_pri":
-        run_analyze_pri(args.output_dir or "papers/", args.temp_dir, args.start_date, args.end_date, args.save_temp)
+        run_analyze_pri(args.output_dir or "papers/", args.temp_dir, args.start_date, args.end_date, args.save_temp, args.paper_ids)
 
     elif args.agent == "analyze_acc":
         run_analyze_agent("analyze_acc", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)

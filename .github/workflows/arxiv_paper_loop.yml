@@ -18,6 +18,10 @@ on:
         required: false
         type: boolean
         default: false
+      paper_ids:
+        description: 'Direct download mode: comma-separated arxiv IDs (e.g., "2607.12345,2607.12346")'
+        required: false
+        type: string
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -59,7 +63,8 @@ jobs:
             --output-dir papers/ \
             --start-date ${{ steps.date.outputs.start_date }} \
             --end-date ${{ steps.date.outputs.end_date }} \
-            ${{ inputs.save_temp && '--save-temp' || '' }}
+            ${{ inputs.save_temp && '--save-temp' || '' }} \
+            ${{ inputs.paper_ids && format('--paper-ids {0}', inputs.paper_ids) || '' }}
 
       - name: Count papers
         id: count

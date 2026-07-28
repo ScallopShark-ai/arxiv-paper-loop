@@ -16,30 +16,26 @@ skills = ["arxiv-connect"]
 
   ## Screening Criteria
 
-  ### Topic Requirements (Broad)
-  Must be related to Artificial Intelligence or Large Language Models:
-  - AI/ML methods and applications
-  - LLM training, inference, or applications
-  - Neural networks, deep learning
-  - Natural language processing
-  - Computer vision with ML
-  - Reinforcement learning, agents
-  - Generative models
+  ### Keywords (flexible matching)
+  - Reinforcement Learning
+  - Agent / LLM Agent / Autonomous Agent
+  - Human Feedback / RLHF / Preference Learning
+  - Game AI / Self-play
+  - Reward Learning / Reward Model
+  - Training Loop / Agent Loop
 
-  ### Category Requirements (Broad)
+  ### Category Requirements
   Must belong to one of the following categories:
   - cs.LG (Machine Learning)
   - cs.AI (Artificial Intelligence)
   - cs.CL (Computation and Language)
   - cs.NE (Neural and Evolutionary Computing)
-  - cs.CV (Computer Vision)
-  - cs.RO (Robotics)
 
   ### Exclusion Conditions
   - Survey / Review papers (unless highly relevant)
 
   ### Pass Conditions
-  - Related to AI/LLM topics (broad matching)
+  - Contains at least one keyword (flexible matching)
   - Belongs to required categories
   - Does not match exclusion conditions
 
@@ -49,13 +45,13 @@ skills = ["arxiv-connect"]
   1. Call arxiv-connect skill
   2. Set search parameters:
      - Date: specified date range
-     - Categories: cs.LG, cs.AI, cs.CL, cs.NE, cs.CV, cs.RO
+     - Categories: cs.LG, cs.AI, cs.CL, cs.NE
   3. Get paper list
 
   ### Phase 2: Screen Abstracts
   For each paper:
   1. Read title and abstract
-  2. Check if topic matches AI/LLM requirements
+  2. Check keyword matching (flexible)
   3. Check category matches
   4. Record screening result
 
