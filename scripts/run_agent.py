@@ -87,9 +87,11 @@ def call_claude(system_prompt: str, user_message: str, model: str, max_retries: 
     """Call Claude API with specified model."""
     import time
 
+    # Set longer timeout for large content processing (10 minutes)
     client = anthropic.Anthropic(
         api_key=os.environ.get("ANTHROPIC_API_KEY"),
-        base_url=os.environ.get("ANTHROPIC_BASE_URL")
+        base_url=os.environ.get("ANTHROPIC_BASE_URL"),
+        timeout=600.0  # 10 minutes timeout
     )
 
     last_error = None
