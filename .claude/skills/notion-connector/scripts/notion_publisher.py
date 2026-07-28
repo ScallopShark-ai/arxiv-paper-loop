@@ -195,6 +195,53 @@ class NotionClient:
         logger.info(f"Wrote {total_blocks} blocks in {(total_blocks + batch_size - 1) // batch_size} batches")
         return True
 
+    def _split_text(self, text: str, max_length: int = 1900) -> List[str]:
+        """
+        Split text into chunks that fit within Notion's 2000 char limit.
+
+        Args:
+            text: Text to split
+            max_length: Maximum length per chunk (default 1900 for safety margin)
+
+        Returns:
+            List of text chunks
+        """
+        if len(text) <= max_length:
+            return [text]
+
+        chunks = []
+        remaining = text
+
+        while remaining:
+            if len(remaining) <= max_length:
+                chunks.append(remaining)
+                break
+
+            # Try to find a good break point (space, period, comma)
+            break_point = max_length
+            for i in range(max_length - 1, max_length // 2, -1):
+                if remaining[i] in ' \n.,;':
+                    break_point = i + 1
+                    break
+
+            chunks.append(remaining[:break_point])
+            remaining = remaining[break_point:]
+
+        return chunks
+
+    def _create_rich_text(self, content: str) -> List[Dict]:
+        """
+        Create rich_text array, splitting if necessary.
+
+        Args:
+            content: Text content
+
+        Returns:
+            List of rich_text objects
+        """
+        chunks = self._split_text(content)
+        return [{"type": "text", "text": {"content": chunk}} for chunk in chunks]
+
     def _markdown_to_blocks(self, markdown: str) -> List[Dict]:
         """
         Convert Markdown text to Notion block format.
@@ -221,7 +268,7 @@ class NotionClient:
                 blocks.append({
                     "type": "heading_1",
                     "heading_1": {
-                        "rich_text": [{"type": "text", "text": {"content": line[2:]}}]
+                        "rich_text": self._create_rich_text(line[2:])
                     }
                 })
 
@@ -230,7 +277,7 @@ class NotionClient:
                 blocks.append({
                     "type": "heading_2",
                     "heading_2": {
-                        "rich_text": [{"type": "text", "text": {"content": line[3:]}}]
+                        "rich_text": self._create_rich_text(line[3:])
                     }
                 })
 
@@ -239,7 +286,7 @@ class NotionClient:
                 blocks.append({
                     "type": "heading_3",
                     "heading_3": {
-                        "rich_text": [{"type": "text", "text": {"content": line[4:]}}]
+                        "rich_text": self._create_rich_text(line[4:])
                     }
                 })
 
@@ -248,7 +295,7 @@ class NotionClient:
                 blocks.append({
                     "type": "bulleted_list_item",
                     "bulleted_list_item": {
-                        "rich_text": [{"type": "text", "text": {"content": line[2:]}}]
+                        "rich_text": self._create_rich_text(line[2:])
                     }
                 })
 
@@ -257,7 +304,7 @@ class NotionClient:
                 blocks.append({
                     "type": "numbered_list_item",
                     "numbered_list_item": {
-                        "rich_text": [{"type": "text", "text": {"content": line[3:]}}]
+                        "rich_text": self._create_rich_text(line[3:])
                     }
                 })
 
@@ -268,10 +315,12 @@ class NotionClient:
                 while i < len(lines) and not lines[i].strip().startswith('```'):
                     code_lines.append(lines[i])
                     i += 1
+                code_content = '\n'.join(code_lines)
+                # Code blocks also need splitting for long content
                 blocks.append({
                     "type": "code",
                     "code": {
-                        "rich_text": [{"type": "text", "text": {"content": '\n'.join(code_lines)}}],
+                        "rich_text": self._create_rich_text(code_content),
                         "language": "plain text"
                     }
                 })
@@ -281,7 +330,7 @@ class NotionClient:
                 blocks.append({
                     "type": "quote",
                     "quote": {
-                        "rich_text": [{"type": "text", "text": {"content": line[2:]}}]
+                        "rich_text": self._create_rich_text(line[2:])
                     }
                 })
 
@@ -294,7 +343,7 @@ class NotionClient:
                 blocks.append({
                     "type": "paragraph",
                     "paragraph": {
-                        "rich_text": [{"type": "text", "text": {"content": line}}]
+                        "rich_text": self._create_rich_text(line)
                     }
                 })
 
