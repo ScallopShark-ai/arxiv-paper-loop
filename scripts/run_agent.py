@@ -262,7 +262,7 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
 
 
 def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir: str, save_temp: bool = False):
-    """Run an analysis agent (analyze_acc, theory_deri, experiment_analyze)."""
+    """Run an analysis agent (analyze_acc, experiment_analyze)."""
     config = load_agent_config(agent_name)
     system_prompt = get_system_prompt(config)
     model = config.get("model", "claude-sonnet-4-20250514")
@@ -278,7 +278,7 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
     if not papers:
         print("No papers to analyze")
         date_str = datetime.now().strftime("%Y-%m-%d")
-        suffix = "acc" if agent_name == "analyze_acc" else ("theory" if agent_name == "theory_deri" else "exp")
+        suffix = "acc" if agent_name == "analyze_acc" else "exp"
         output_file = f"{output_dir}/{date_str}-{suffix}.md"
         with open(output_file, "w", encoding="utf-8") as f:
             f.write("# 无相关论文\n\n昨日没有相关论文。\n")
@@ -286,7 +286,7 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
 
     all_analyses = []
     date_str = datetime.now().strftime("%Y-%m-%d")
-    suffix = "acc" if agent_name == "analyze_acc" else ("theory" if agent_name == "theory_deri" else "exp")
+    suffix = "acc" if agent_name == "analyze_acc" else "exp"
 
     for paper in papers:
         print(f"Analyzing: {paper['filename']}")
@@ -341,10 +341,9 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
 
     # Separate analyses by type
     acc_analyses = [a for a in analyses if '-acc.' in a['filename']]
-    theory_analyses = [a for a in analyses if '-theory.' in a['filename']]
     exp_analyses = [a for a in analyses if '-exp.' in a['filename']]
 
-    print(f"Found: {len(acc_analyses)} acc, {len(theory_analyses)} theory, {len(exp_analyses)} exp analyses")
+    print(f"Found: {len(acc_analyses)} acc, {len(exp_analyses)} exp analyses")
 
     # Handle no analyses found
     if not analyses:
@@ -381,11 +380,6 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
             for a in acc_analyses:
                 combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
 
-        if theory_analyses:
-            combined_input += "## 理论推导分析 (theory)\n\n"
-            for a in theory_analyses:
-                combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
-
         if exp_analyses:
             combined_input += "## 实验分析 (exp)\n\n"
             for a in exp_analyses:
@@ -399,11 +393,10 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
 1. 必须使用中文输出所有内容
 2. 必须整合以下所有部分：
    - 综合评价部分（来自acc分析）
-   - 理论推导部分（来自theory分析，如有）
-   - 实验分析部分（来自exp分析，如有）
+   - 实验分析部分（来自exp分析）
 3. 按照 agent 配置中的格式输出
 4. 包括每日概览、论文摘要、重点推荐、详细分析等部分
-5. 每篇论文都要整合其acc、theory、exp三方面的分析"""
+5. 每篇论文都要整合其acc、exp两方面的分析"""
 
         summary = call_claude(system_prompt, user_message, model)
 
@@ -451,9 +444,6 @@ def main():
 
     elif args.agent == "analyze_acc":
         run_analyze_agent("analyze_acc", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)
-
-    elif args.agent == "theory_deri":
-        run_analyze_agent("theory_deri", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)
 
     elif args.agent == "experiment_analyze":
         run_analyze_agent("experiment_analyze", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)

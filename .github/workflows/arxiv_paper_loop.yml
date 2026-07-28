@@ -128,43 +128,6 @@ jobs:
           path: temp/
           retention-days: 1
 
-  theory_deri:
-    needs: analyze_pri
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install anthropic marker-pdf pymupdf pdfplumber
-      - name: Download papers artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: papers
-          path: papers/
-      - name: Run theory_deri agent
-        run: |
-          python scripts/run_agent.py \
-            --agent theory_deri \
-            --input-dir papers/ \
-            --output-dir analysis/ \
-            ${{ inputs.save_temp && '--save-temp' || '' }}
-      - name: Upload analysis artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: analysis-theory
-          path: analysis/
-          retention-days: 1
-      - name: Upload temp artifact
-        if: ${{ inputs.save_temp }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: temp-theory
-          path: temp/
-          retention-days: 1
-
   experiment_analyze:
     needs: analyze_pri
     runs-on: ubuntu-latest
@@ -203,7 +166,7 @@ jobs:
           retention-days: 1
 
   summarize_and_publish:
-    needs: [analyze_acc, theory_deri, experiment_analyze]
+    needs: [analyze_acc, experiment_analyze]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

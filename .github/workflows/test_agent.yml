@@ -9,7 +9,6 @@ on:
         type: choice
         options:
           - analyze_acc
-          - theory_deri
           - experiment_analyze
           - summarize_and_publish
           - all_analysis
@@ -43,31 +42,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: result-acc
-          path: analysis/
-          retention-days: 1
-
-  test-theory-deri:
-    if: ${{ inputs.agent == 'theory_deri' || inputs.agent == 'all_analysis' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install anthropic marker-pdf pymupdf pdfplumber
-      - name: Run theory_deri
-        run: |
-          python scripts/run_agent.py \
-            --agent theory_deri \
-            --input-dir test_data/papers/ \
-            --output-dir analysis/ \
-            --save-temp
-      - name: Upload result
-        uses: actions/upload-artifact@v4
-        with:
-          name: result-theory
           path: analysis/
           retention-days: 1
 
