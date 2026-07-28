@@ -329,7 +329,7 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
 
 
 def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = False):
-    """Run summarize_and_publish agent - create two sub-pages under date page."""
+    """Run summarize_and_publish agent - translate and create two sub-pages."""
     config = load_agent_config("summarize_and_publish")
     system_prompt = get_system_prompt(config)
     model = config.get("model", "claude-sonnet-4-20250514")
@@ -373,23 +373,74 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
         print(f"Published empty state to Notion! Page ID: {parent_page_id}")
         return
 
+    # Build input for LLM translation
+    combined_input = "# 输入分析报告\n\n"
+
+    if acc_analyses:
+        combined_input += "## ACC 分析报告\n\n"
+        for a in acc_analyses:
+            combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
+
+    if exp_analyses:
+        combined_input += "## EXP 分析报告\n\n"
+        for a in exp_analyses:
+            combined_input += f"### {a['filename']}\n\n{a['content']}\n\n"
+
+    # Call LLM to translate and format
+    print("Translating and formatting content...")
+    user_message = f"""请将以下分析报告翻译为中文，并正确处理公式格式：
+
+{combined_input}
+
+要求：
+1. 所有内容翻译为中文
+2. LaTeX 公式转换为可读文本
+3. 保持表格结构
+4. 输出格式：
+=== ACC 内容 ===
+[翻译后的内容]
+
+=== EXP 内容 ===
+[翻译后的内容]
+"""
+
+    translated_content = call_claude(system_prompt, user_message, model)
+
+    # Parse translated content
+    acc_content = ""
+    exp_content = ""
+
+    if "=== ACC 内容 ===" in translated_content:
+        parts = translated_content.split("=== ACC 内容 ===")
+        if len(parts) > 1:
+            acc_part = parts[1]
+            if "=== EXP 内容 ===" in acc_part:
+                acc_content = acc_part.split("=== EXP 内容 ===")[0].strip()
+                exp_content = acc_part.split("=== EXP 内容 ===")[1].strip()
+            else:
+                acc_content = acc_part.strip()
+
+    # Fallback if parsing failed
+    if not acc_content and acc_analyses:
+        acc_content = "\n\n---\n\n".join([a['content'] for a in acc_analyses])
+    if not exp_content and exp_analyses:
+        exp_content = "\n\n---\n\n".join([a['content'] for a in exp_analyses])
+
     # Create parent page (date)
     print(f"Creating parent page: {date_str}")
     parent_page_id = create_child_page(date_str)
 
     # Create and populate 论文详解 sub-page
-    if acc_analyses:
+    if acc_content:
         print("Creating 论文详解 sub-page...")
         acc_page_id = create_child_page("论文详解", parent_id=parent_page_id)
-        acc_content = "\n\n---\n\n".join([a['content'] for a in acc_analyses])
         write_to_page(acc_page_id, acc_content)
         print(f"Written acc content to: {acc_page_id}")
 
     # Create and populate 实验报告 sub-page
-    if exp_analyses:
+    if exp_content:
         print("Creating 实验报告 sub-page...")
         exp_page_id = create_child_page("实验报告", parent_id=parent_page_id)
-        exp_content = "\n\n---\n\n".join([a['content'] for a in exp_analyses])
         write_to_page(exp_page_id, exp_content)
         print(f"Written exp content to: {exp_page_id}")
 
