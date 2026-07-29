@@ -406,6 +406,15 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
 
     translated_content = call_claude(system_prompt, user_message, model)
 
+    # Debug: save translated content
+    if save_temp:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        temp_translated_file = f"{temp_dir}/{date_str}-translated.md"
+        os.makedirs(temp_dir, exist_ok=True)
+        with open(temp_translated_file, "w", encoding="utf-8") as f:
+            f.write(translated_content)
+        print(f"Saved translated content to: {temp_translated_file}")
+
     # Parse translated content
     acc_content = ""
     exp_content = ""
@@ -419,11 +428,15 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
                 exp_content = acc_part.split("=== EXP 内容 ===")[1].strip()
             else:
                 acc_content = acc_part.strip()
+    else:
+        print("Warning: Translation markers not found, using fallback")
 
     # Fallback if parsing failed
     if not acc_content and acc_analyses:
+        print("Warning: Using raw ACC content (no translation)")
         acc_content = "\n\n---\n\n".join([a['content'] for a in acc_analyses])
     if not exp_content and exp_analyses:
+        print("Warning: Using raw EXP content (no translation)")
         exp_content = "\n\n---\n\n".join([a['content'] for a in exp_analyses])
 
     # Create parent page (date)
