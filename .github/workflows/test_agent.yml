@@ -12,6 +12,7 @@ on:
           - experiment_analyze
           - summarize_and_publish
           - all_analysis
+          - image_upload
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -20,6 +21,141 @@ env:
   NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
 
 jobs:
+  test-image-upload:
+    if: ${{ inputs.agent == 'image_upload' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pymupdf notion-client
+      - name: Extract images from test PDFs
+        run: |
+          mkdir -p extracted_images/
+          python -c "
+          import os
+          import sys
+          sys.path.insert(0, '.claude/skills/pdf-image-extractor/scripts')
+          from pdf_image_extractor import extract_images_from_directory
+          results = extract_images_from_directory('test_data/papers/', 'extracted_images/')
+          total = sum(len(imgs) for imgs in results.values())
+          print(f'Extracted {total} images')
+          for pdf, imgs in results.items():
+              for img in imgs:
+                  print(f'  {pdf}: {img[\"filename\"]}')
+          "
+      - name: Check if images exist
+        id: check
+        run: |
+          if [ "$(ls -A extracted_images/ 2>/dev/null)" ]; then
+            echo "has_images=true" >> $GITHUB_OUTPUT
+            echo "Images found:"
+            find extracted_images/ -type f -name "*.png" -o -name "*.jpg"
+          else
+            echo "has_images=false" >> $GITHUB_OUTPUT
+            echo "No images found"
+          fi
+      - name: Upload images to GitHub branch
+        if: steps.check.outputs.has_images == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B images-test
+          git add -f extracted_images/
+          git commit -m "Test: Add extracted images $(date +%Y-%m-%d-%H%M%S)" || echo "No changes"
+          git push -f origin images-test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate URL mapping
+        if: steps.check.outputs.has_images == 'true'
+        id: urls
+        run: |
+          REPO="${{ github.repository }}"
+          BRANCH="images-test"
+          echo "{" > image_urls.json
+          first=true
+          for img in $(find extracted_images/ -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \)); do
+            filename=$(basename "$img")
+            url="https://raw.githubusercontent.com/$REPO/$BRANCH/$img"
+            if [ "$first" = true ]; then
+              first=false
+            else
+              echo "," >> image_urls.json
+            fi
+            echo "\"$filename\": \"$url\"" >> image_urls.json
+          done
+          echo "}" >> image_urls.json
+          echo "Generated image_urls.json:"
+          cat image_urls.json
+      - name: Create test markdown with images
+        if: steps.check.outputs.has_images == 'true'
+        run: |
+          echo '# 图片测试报告' > test_image_report.md
+          echo '' >> test_image_report.md
+          echo '## 提取的图片' >> test_image_report.md
+          echo '' >> test_image_report.md
+          for img in $(find extracted_images/ -type f \( -name "*.png" -o -name "*.jpg" \)); do
+            filename=$(basename "$img")
+            echo "![${filename}](./${filename})" >> test_image_report.md
+            echo '' >> test_image_report.md
+          done
+          echo '---' >> test_image_report.md
+          echo '测试完成！' >> test_image_report.md
+          echo "Created test_image_report.md:"
+          cat test_image_report.md
+      - name: Publish to Notion with image URLs
+        if: steps.check.outputs.has_images == 'true'
+        run: |
+          python -c "
+          import json
+          import os
+          import sys
+
+          # Load image URL mapping
+          with open('image_urls.json', 'r') as f:
+              image_url_map = json.load(f)
+          print(f'Loaded {len(image_url_map)} image URL mappings')
+
+          # Import and test notion publisher
+          sys.path.insert(0, 'scripts')
+          from notion_publisher_standalone import NotionPublisher
+
+          publisher = NotionPublisher(image_url_map=image_url_map)
+
+          # Read test markdown
+          with open('test_image_report.md', 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          # Parse and show blocks
+          blocks = publisher.parse_markdown(content)
+          print(f'Parsed {len(blocks)} blocks')
+
+          for b in blocks:
+              print(f'  {b[\"type\"]}')
+              if b['type'] == 'image':
+                  print(f'    URL: {b[\"image\"][\"external\"][\"url\"]}')
+
+          # Create page in Notion
+          print('\\nCreating Notion page...')
+          page_id = publisher.publish_string(content, '图片上传测试')
+          print(f'Published to: https://notion.so/{page_id.replace(\"-\", \"\")}')
+          "
+      - name: Upload results
+        if: steps.check.outputs.has_images == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-upload-results
+          path: |
+            extracted_images/
+            image_urls.json
+            test_image_report.md
+          retention-days: 1
+
   test-analyze-acc:
     if: ${{ inputs.agent == 'analyze_acc' || inputs.agent == 'all_analysis' }}
     runs-on: ubuntu-latest

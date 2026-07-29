@@ -165,8 +165,87 @@ jobs:
           path: temp/
           retention-days: 1
 
+  extract_images:
+    needs: analyze_pri
+    runs-on: ubuntu-latest
+    outputs:
+      has_images: ${{ steps.check.outputs.has_images }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pymupdf
+      - name: Download papers artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: papers
+          path: papers/
+      - name: Extract images from PDFs
+        run: |
+          mkdir -p extracted_images/
+          python -c "
+          import os
+          import sys
+          sys.path.insert(0, '.claude/skills/pdf-image-extractor/scripts')
+          from pdf_image_extractor import extract_images_from_directory
+          results = extract_images_from_directory('papers/', 'extracted_images/')
+          total = sum(len(imgs) for imgs in results.values())
+          print(f'Extracted {total} images')
+          "
+      - name: Check if images exist
+        id: check
+        run: |
+          if [ "$(ls -A extracted_images/ 2>/dev/null)" ]; then
+            echo "has_images=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_images=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Upload images to GitHub branch
+        if: steps.check.outputs.has_images == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B images
+          git add -f extracted_images/
+          git commit -m "Add extracted images $(date +%Y-%m-%d)" || echo "No changes"
+          git push -f origin images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate URL mapping
+        if: steps.check.outputs.has_images == 'true'
+        id: urls
+        run: |
+          REPO="${{ github.repository }}"
+          BRANCH="images"
+          echo "{" > image_urls.json
+          first=true
+          for img in $(find extracted_images/ -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \)); do
+            filename=$(basename "$img")
+            url="https://raw.githubusercontent.com/$REPO/$BRANCH/$img"
+            if [ "$first" = true ]; then
+              first=false
+            else
+              echo "," >> image_urls.json
+            fi
+            echo "\"$filename\": \"$url\"" >> image_urls.json
+          done
+          echo "}" >> image_urls.json
+          cat image_urls.json
+      - name: Upload URL mapping artifact
+        if: steps.check.outputs.has_images == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-urls
+          path: image_urls.json
+          retention-days: 1
+
   summarize_and_publish:
-    needs: [analyze_acc, experiment_analyze]
+    needs: [analyze_acc, experiment_analyze, extract_images]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -182,13 +261,20 @@ jobs:
           pattern: analysis-*
           path: analysis/
           merge-multiple: true
+      - name: Download image URL mapping
+        if: needs.extract_images.outputs.has_images == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: image-urls
+          path: ./
       - name: Run summarize_and_publish agent
         run: |
           python scripts/run_agent.py \
             --agent summarize_and_publish \
             --input-dir analysis/ \
             ${{ inputs.save_temp && '--save-temp' || '' }} \
-            --publish-notion
+            --publish-notion \
+            ${{ needs.extract_images.outputs.has_images == 'true' && '--image-urls image_urls.json' || '' }}
       - name: Upload final temp artifact
         if: ${{ inputs.save_temp }}
         uses: actions/upload-artifact@v4

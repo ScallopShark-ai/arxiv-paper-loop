@@ -17,10 +17,15 @@ logger = logging.getLogger(__name__)
 class NotionClient:
     """Notion client with retry and rate limiting support."""
 
-    def __init__(self):
-        """Initialize Notion client with environment variables."""
+    def __init__(self, image_url_map: Dict = None):
+        """Initialize Notion client with environment variables.
+
+        Args:
+            image_url_map: Dict mapping local image paths to GitHub URLs
+        """
         self.api_key = os.environ.get("NOTION_API_KEY")
         self.page_id = os.environ.get("NOTION_PAGE_ID")
+        self.image_url_map = image_url_map or {}
 
         if not self.api_key:
             raise ValueError("NOTION_API_KEY environment variable not set")
@@ -229,18 +234,75 @@ class NotionClient:
 
         return chunks
 
-    def _create_rich_text(self, content: str) -> List[Dict]:
+    def _parse_inline_equations(self, text: str) -> List[Dict]:
         """
-        Create rich_text array, splitting if necessary.
+        Parse text and convert inline LaTeX $...$ to equation objects.
 
         Args:
-            content: Text content
+            text: Text with potential inline equations
+
+        Returns:
+            List of rich_text objects (text and equation mixed)
+        """
+        import re
+        result = []
+        remaining = text
+
+        # Pattern to match $...$ (non-greedy, so $a$ and $b$ are separate)
+        pattern = r'\$([^$]+)\$'
+
+        while remaining:
+            match = re.search(pattern, remaining)
+            if match:
+                # Add text before the equation
+                if match.start() > 0:
+                    before = remaining[:match.start()]
+                    result.append({"type": "text", "text": {"content": before}})
+
+                # Add the equation
+                eq_content = match.group(1)
+                result.append({"type": "equation", "equation": {"expression": eq_content}})
+
+                # Move past the match
+                remaining = remaining[match.end():]
+            else:
+                # No more equations, add remaining text
+                if remaining:
+                    result.append({"type": "text", "text": {"content": remaining}})
+                break
+
+        return result
+
+    def _create_rich_text(self, content: str) -> List[Dict]:
+        """
+        Create rich_text array, splitting if necessary and handling inline equations.
+
+        Args:
+            content: Text content (may contain $...$ inline equations)
 
         Returns:
             List of rich_text objects
         """
-        chunks = self._split_text(content)
-        return [{"type": "text", "text": {"content": chunk}} for chunk in chunks]
+        # First parse inline equations
+        parsed = self._parse_inline_equations(content)
+
+        # Now handle splitting for long text segments
+        result = []
+        for item in parsed:
+            if item["type"] == "text":
+                text = item["text"]["content"]
+                if len(text) > 1900:
+                    # Split long text
+                    chunks = self._split_text(text)
+                    for chunk in chunks:
+                        result.append({"type": "text", "text": {"content": chunk}})
+                else:
+                    result.append(item)
+            else:
+                # Equations don't need splitting (they're usually short)
+                result.append(item)
+
+        return result
 
     def _markdown_to_blocks(self, markdown: str) -> List[Dict]:
         """
@@ -338,6 +400,100 @@ class NotionClient:
             elif line == '---':
                 blocks.append({"type": "divider", "divider": {}})
 
+            # LaTeX block equation ($$...$$)
+            elif line.strip().startswith('$$'):
+                eq_lines = []
+                # Check if equation starts and ends on same line
+                if line.strip().endswith('$$') and len(line.strip()) > 4:
+                    # Single line equation: $$formula$$
+                    eq_content = line.strip()[2:-2]
+                else:
+                    # Multi-line equation
+                    if len(line.strip()) > 2:
+                        eq_lines.append(line.strip()[2:])
+                    i += 1
+                    while i < len(lines) and not lines[i].strip().endswith('$$'):
+                        eq_lines.append(lines[i])
+                        i += 1
+                    if i < len(lines):
+                        # Add the last line without the closing $$
+                        last_line = lines[i].strip()
+                        if last_line.endswith('$$'):
+                            eq_lines.append(last_line[:-2])
+                    eq_content = '\n'.join(eq_lines)
+
+                blocks.append({
+                    "type": "equation",
+                    "equation": {
+                        "expression": eq_content.strip()
+                    }
+                })
+
+            # Image: ![alt](url)
+            elif line.strip().startswith('!['):
+                import re
+                img_match = re.match(r'!\[([^\]]*)\]\(([^)]+)\)', line.strip())
+                if img_match:
+                    alt_text = img_match.group(1)
+                    img_url = img_match.group(2)
+
+                    # Check if it's an external URL
+                    if img_url.startswith('http://') or img_url.startswith('https://'):
+                        blocks.append({
+                            "type": "image",
+                            "image": {
+                                "type": "external",
+                                "external": {
+                                    "url": img_url
+                                }
+                            }
+                        })
+                    # Check if we have a mapping for this local path
+                    elif img_url in self.image_url_map:
+                        mapped_url = self.image_url_map[img_url]
+                        logger.info(f"Mapped local image '{img_url}' to '{mapped_url}'")
+                        blocks.append({
+                            "type": "image",
+                            "image": {
+                                "type": "external",
+                                "external": {
+                                    "url": mapped_url
+                                }
+                            }
+                        })
+                    # Try to match by filename
+                    else:
+                        import os
+                        filename = os.path.basename(img_url)
+                        if filename in self.image_url_map:
+                            mapped_url = self.image_url_map[filename]
+                            logger.info(f"Mapped local image '{filename}' to '{mapped_url}'")
+                            blocks.append({
+                                "type": "image",
+                                "image": {
+                                    "type": "external",
+                                    "external": {
+                                        "url": mapped_url
+                                    }
+                                }
+                            })
+                        else:
+                            # No mapping available - create placeholder
+                            logger.warning(f"No URL mapping for local image '{img_url}'")
+                            blocks.append({
+                                "type": "paragraph",
+                                "paragraph": {
+                                    "rich_text": [{"type": "text", "text": {"content": f"[图片: {alt_text or img_url}]"}}]
+                                }
+                            })
+                else:
+                    blocks.append({
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": self._create_rich_text(line)
+                        }
+                    })
+
             # Paragraph (default)
             else:
                 blocks.append({
@@ -355,11 +511,18 @@ class NotionClient:
 # Convenience functions for direct import
 _client = None
 
-def get_client() -> NotionClient:
-    """Get or create Notion client instance."""
+def get_client(image_url_map: Dict = None) -> NotionClient:
+    """Get or create Notion client instance.
+
+    Args:
+        image_url_map: Dict mapping local image paths to GitHub URLs
+    """
     global _client
     if _client is None:
-        _client = NotionClient()
+        _client = NotionClient(image_url_map)
+    elif image_url_map:
+        # Update the image_url_map if client already exists
+        _client.image_url_map = image_url_map
     return _client
 
 def read_page() -> List[Dict]:

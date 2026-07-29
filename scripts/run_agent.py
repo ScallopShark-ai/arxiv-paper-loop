@@ -328,8 +328,15 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
     return output_file
 
 
-def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = False):
-    """Run summarize_and_publish agent - translate and create two sub-pages."""
+def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = False, image_url_map: dict = None):
+    """Run summarize_and_publish agent - translate and create two sub-pages.
+
+    Args:
+        input_dir: Directory containing analysis files
+        temp_dir: Directory for temporary files
+        save_temp: Whether to save intermediate files
+        image_url_map: Dict mapping local image paths to GitHub URLs
+    """
     config = load_agent_config("summarize_and_publish")
     system_prompt = get_system_prompt(config)
     model = config.get("model", "claude-sonnet-4-20250514")
@@ -347,7 +354,12 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
 
     # Import notion functions
     sys.path.insert(0, ".claude/skills/notion-connector/scripts")
-    from notion_publisher import create_child_page, write_to_page
+    from notion_publisher import create_child_page, write_to_page, get_client
+
+    # Initialize client with image URL map if provided
+    if image_url_map:
+        client = get_client(image_url_map)
+        print(f"Notion client initialized with {len(image_url_map)} image URL mappings")
 
     date_str = datetime.now().strftime("%Y-%m-%d")
 
@@ -489,6 +501,7 @@ def main():
     parser.add_argument("--save-temp", action="store_true", help="Save intermediate files to temp folder")
     parser.add_argument("--publish-notion", action="store_true", help="Publish to Notion")
     parser.add_argument("--paper-ids", help="Direct download: comma-separated arxiv IDs")
+    parser.add_argument("--image-urls", help="JSON file with image URL mappings")
 
     args = parser.parse_args()
 
@@ -505,7 +518,13 @@ def main():
         run_analyze_agent("experiment_analyze", args.input_dir or "papers/", args.output_dir or "analysis/", args.temp_dir, args.save_temp)
 
     elif args.agent == "summarize_and_publish":
-        run_summarize_and_publish(args.input_dir or "analysis/", args.temp_dir, args.save_temp)
+        image_url_map = None
+        if args.image_urls:
+            import json
+            with open(args.image_urls, "r", encoding="utf-8") as f:
+                image_url_map = json.load(f)
+            print(f"Loaded {len(image_url_map)} image URL mappings")
+        run_summarize_and_publish(args.input_dir or "analysis/", args.temp_dir, args.save_temp, image_url_map)
 
     else:
         print(f"Unknown agent: {args.agent}")
