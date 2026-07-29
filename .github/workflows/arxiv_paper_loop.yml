@@ -168,6 +168,8 @@ jobs:
   extract_images:
     needs: analyze_pri
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       has_images: ${{ steps.check.outputs.has_images }}
     steps:
