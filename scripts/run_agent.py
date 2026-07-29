@@ -415,21 +415,25 @@ def run_summarize_and_publish(input_dir: str, temp_dir: str, save_temp: bool = F
             f.write(translated_content)
         print(f"Saved translated content to: {temp_translated_file}")
 
-    # Parse translated content
+    # Parse translated content with new markers
     acc_content = ""
     exp_content = ""
 
-    if "=== ACC 内容 ===" in translated_content:
-        parts = translated_content.split("=== ACC 内容 ===")
-        if len(parts) > 1:
-            acc_part = parts[1]
-            if "=== EXP 内容 ===" in acc_part:
-                acc_content = acc_part.split("=== EXP 内容 ===")[0].strip()
-                exp_content = acc_part.split("=== EXP 内容 ===")[1].strip()
-            else:
-                acc_content = acc_part.strip()
+    if "<<<ACC_START>>>" in translated_content and "<<<ACC_END>>>" in translated_content:
+        acc_start = translated_content.find("<<<ACC_START>>>") + len("<<<ACC_START>>>")
+        acc_end = translated_content.find("<<<ACC_END>>>")
+        acc_content = translated_content[acc_start:acc_end].strip()
+        print("Successfully parsed ACC content")
     else:
-        print("Warning: Translation markers not found, using fallback")
+        print("Warning: ACC markers not found")
+
+    if "<<<EXP_START>>>" in translated_content and "<<<EXP_END>>>" in translated_content:
+        exp_start = translated_content.find("<<<EXP_START>>>") + len("<<<EXP_START>>>")
+        exp_end = translated_content.find("<<<EXP_END>>>")
+        exp_content = translated_content[exp_start:exp_end].strip()
+        print("Successfully parsed EXP content")
+    else:
+        print("Warning: EXP markers not found")
 
     # Fallback if parsing failed
     if not acc_content and acc_analyses:
