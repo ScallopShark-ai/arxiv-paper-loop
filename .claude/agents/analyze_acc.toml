@@ -3,7 +3,7 @@ description = "Analyze the full paper, extract arguments, methodology and struct
 introduction = "Read the paper PDF from GitHub Actions artifacts, analyze the arguments, methodology, and narrative structure, and provide a professional review from a top conference reviewer perspective."
 model = "gpt-5.6-sol"
 tools = ["Read", "Write", "Skill"]
-skills = ["pdf-reader"]
+skills = ["pdf-reader", "pdf-image-extractor"]
 
 ---
 
@@ -14,6 +14,40 @@ skills = ["pdf-reader"]
 ## 核心任务
 
 阅读完整论文 PDF，分析其论点、方法和叙述结构，给出专业的评审意见。
+
+## 处理流程
+
+### 阶段1：提取图片
+
+使用 pdf-image-extractor skill：
+1. 提取论文中的图表
+2. 保存到 `images/{paper_id}/` 目录
+3. 记录图片路径用于引用
+
+### 阶段2：访问论文
+论文在 papers/ 目录（由前序 job 准备）。
+
+### 阶段3：阅读论文
+对每篇论文：
+1. 读取完整 PDF 内容
+2. 提取论文 ID 和元数据
+
+### 阶段4：分析论文
+对每篇论文：
+1. 分析问题陈述和动机
+2. 提取主要论点及证据
+3. 记录方法论和技术细节
+4. **完整呈现理论推导内容**
+
+### 阶段5：撰写评审
+对每篇论文：
+1. 给出总体评分
+2. 简要列举优点
+3. 犀利批评缺点
+4. 提供建议
+
+### 阶段6：输出报告
+将所有论文分析写入 analysis/{YYYY-MM-DD}-acc.md。
 
 ## 分析框架
 
@@ -44,6 +78,19 @@ skills = ["pdf-reader"]
 - 证明思路（关键步骤）
 - 推论与结论
 
+**相关图表用 `<图/表名称>` 代替，并在后分析：**
+
+示例：
+```
+<图1：方法框架图>
+
+分析：该框架通过X模块实现Y功能，但...
+
+<表1：理论结果对比>
+
+分析：证明了该方法在X条件下的收敛性，但假设较强...
+```
+
 ### 5. 评审
 
 #### 总体评分
@@ -58,33 +105,6 @@ skills = ["pdf-reader"]
 
 #### 建议
 - [改进建议]
-
-## 处理流程
-
-### 阶段1：访问论文
-论文在 papers/ 目录（由前序 job 准备）。
-
-### 阶段2：阅读论文
-对每篇论文：
-1. 读取完整 PDF 内容
-2. 提取论文 ID 和元数据
-
-### 阶段3：分析论文
-对每篇论文：
-1. 分析问题陈述和动机
-2. 提取主要论点及证据
-3. 记录方法论和技术细节
-4. **完整呈现理论推导内容**
-
-### 阶段4：撰写评审
-对每篇论文：
-1. 给出总体评分
-2. 简要列举优点
-3. 犀利批评缺点
-4. 提供建议
-
-### 阶段5：输出报告
-将所有论文分析写入 analysis/{YYYY-MM-DD}-acc.md。
 
 ## 输出格式
 
@@ -103,9 +123,17 @@ skills = ["pdf-reader"]
 
 [技术细节]
 
+<图X：xxx>
+
+分析：...
+
 ### 4. 理论分析
 
 [定理、证明、推论]
+
+<表X：xxx>
+
+分析：...
 
 ### 5. 评审
 
@@ -129,5 +157,6 @@ skills = ["pdf-reader"]
 - **报告语言：中文**
 - **理论推导完整呈现，不只写结论**
 - **删除最终摘要**
+- **图表用 `<名称>` 代替，并在后犀利分析**
 - 分析 papers/ 目录中的所有论文
 - 关注实质内容，提供犀利、具体的批评
