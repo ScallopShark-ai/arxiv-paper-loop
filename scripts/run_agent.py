@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Run Agent Script
-Loads agent configuration and calls Claude API.
+Loads agent configuration and calls Claude API via skills.
 """
 
 import os
@@ -11,8 +11,6 @@ import glob
 import shutil
 from datetime import datetime
 from pathlib import Path
-
-import anthropic
 
 
 def load_agent_config(agent_name: str) -> dict:
@@ -83,138 +81,22 @@ def read_analysis_files(input_dir: str) -> list:
     return analyses
 
 
+def get_multimodal_analyzer():
+    """Get the multimodal analyzer from the skill."""
+    sys.path.insert(0, ".claude/skills/multimodal-analysis/scripts")
+    from multimodal_client import MultimodalAnalyzer
+    return MultimodalAnalyzer()
+
+
 def call_claude(system_prompt: str, user_message: str, model: str, max_retries: int = 2) -> str:
-    """Call Claude API with specified model."""
-    import time
-
-    # Set longer timeout for large content processing (10 minutes)
-    client = anthropic.Anthropic(
-        api_key=os.environ.get("ANTHROPIC_API_KEY"),
-        base_url=os.environ.get("ANTHROPIC_BASE_URL"),
-        timeout=600.0  # 10 minutes timeout
+    """Call Claude API with specified model using the multimodal-analysis skill."""
+    analyzer = get_multimodal_analyzer()
+    return analyzer.analyze_text(
+        system_prompt=system_prompt,
+        text_content=user_message,
+        model=model,
+        max_retries=max_retries
     )
-
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            message = client.messages.create(
-                model=model,
-                max_tokens=16000,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_message}
-                ]
-            )
-
-            # Handle both regular text blocks and thinking blocks
-            result_parts = []
-            for block in message.content:
-                if hasattr(block, 'text'):
-                    result_parts.append(block.text)
-                # Skip thinking blocks - do not include in output
-                elif hasattr(block, 'thinking'):
-                    continue
-                else:
-                    result_parts.append(str(block))
-
-            return "\n".join(result_parts)
-
-        except anthropic.InternalServerError as e:
-            last_error = e
-            if "524" in str(e) or "timeout" in str(e).lower():
-                print(f"Timeout error (attempt {attempt + 1}/{max_retries + 1}): {e}")
-                if attempt < max_retries:
-                    time.sleep(5)
-                    continue
-            raise
-        except Exception as e:
-            last_error = e
-            raise
-
-    raise last_error
-
-
-def call_claude_with_images(system_prompt: str, text_content: str, images: list, model: str, max_retries: int = 2) -> str:
-    """Call Claude API with multimodal content (text + images)."""
-    import time
-    import base64
-
-    # Set longer timeout for large content processing (10 minutes)
-    client = anthropic.Anthropic(
-        api_key=os.environ.get("ANTHROPIC_API_KEY"),
-        base_url=os.environ.get("ANTHROPIC_BASE_URL"),
-        timeout=600.0  # 10 minutes timeout
-    )
-
-    # Build content blocks
-    content_blocks = [{"type": "text", "text": text_content}]
-
-    # Add images (limit to first 20 to avoid token limits)
-    for img_info in images[:20]:
-        img_path = img_info["path"]
-        try:
-            with open(img_path, "rb") as f:
-                image_data = base64.standard_b64encode(f.read()).decode("utf-8")
-
-            # Determine media type
-            ext = os.path.splitext(img_path)[1].lower()
-            media_type = "image/png" if ext == ".png" else "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
-
-            content_blocks.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": image_data
-                }
-            })
-            # Add label for the image
-            content_blocks.append({
-                "type": "text",
-                "text": f"\n<图/表：{img_info['filename']} (第{img_info['page']}页)>\n"
-            })
-        except Exception as e:
-            print(f"Warning: Failed to read image {img_path}: {e}")
-            continue
-
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            message = client.messages.create(
-                model=model,
-                max_tokens=16000,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": content_blocks}
-                ]
-            )
-
-            # Handle both regular text blocks and thinking blocks
-            result_parts = []
-            for block in message.content:
-                if hasattr(block, 'text'):
-                    result_parts.append(block.text)
-                # Skip thinking blocks - do not include in output
-                elif hasattr(block, 'thinking'):
-                    continue
-                else:
-                    result_parts.append(str(block))
-
-            return "\n".join(result_parts)
-
-        except anthropic.InternalServerError as e:
-            last_error = e
-            if "524" in str(e) or "timeout" in str(e).lower():
-                print(f"Timeout error (attempt {attempt + 1}/{max_retries + 1}): {e}")
-                if attempt < max_retries:
-                    time.sleep(5)
-                    continue
-            raise
-        except Exception as e:
-            last_error = e
-            raise
-
-    raise last_error
 
 
 def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None, save_temp: bool = False, paper_ids: str = None):
@@ -442,7 +324,13 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
         # Use multimodal API if images are available
         if image_list:
             print(f"  Using multimodal API with {len(image_list)} images")
-            analysis = call_claude_with_images(system_prompt, text_content, image_list, model)
+            analyzer = get_multimodal_analyzer()
+            analysis = analyzer.analyze_with_images(
+                system_prompt=system_prompt,
+                text_content=text_content,
+                images=image_list,
+                model=model
+            )
         else:
             analysis = call_claude(system_prompt, text_content, model)
 
