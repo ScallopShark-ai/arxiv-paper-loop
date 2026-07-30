@@ -13,6 +13,10 @@ on:
           - summarize_and_publish
           - all_analysis
           - image_upload
+      paper_ids:
+        description: 'Paper IDs (comma-separated, e.g. 2607.24057,2607.24062)'
+        required: false
+        type: string
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -169,18 +173,40 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install anthropic marker-pdf pymupdf pdfplumber
+      - name: Prepare papers
+        run: |
+          mkdir -p papers/
+          if [ -n "${{ inputs.paper_ids }}" ]; then
+            IFS=',' read -ra IDS <<< "${{ inputs.paper_ids }}"
+            for id in "${IDS[@]}"; do
+              id=$(echo "$id" | tr -d ' ')
+              if [ -f "test_data/papers/${id}.pdf" ]; then
+                cp "test_data/papers/${id}.pdf" papers/
+                echo "Copied: ${id}.pdf"
+              else
+                echo "Warning: test_data/papers/${id}.pdf not found"
+              fi
+            done
+          else
+            cp test_data/papers/*.pdf papers/
+          fi
+          echo "Papers to analyze:"
+          ls -la papers/
       - name: Run analyze_acc
         run: |
           python scripts/run_agent.py \
             --agent analyze_acc \
-            --input-dir test_data/papers/ \
+            --input-dir papers/ \
             --output-dir analysis/ \
+            --temp-dir temp/acc \
             --save-temp
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
           name: result-acc
-          path: analysis/
+          path: |
+            analysis/
+            temp/
           retention-days: 1
 
   test-experiment-analyze:
@@ -194,18 +220,40 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install anthropic marker-pdf pymupdf pdfplumber
+      - name: Prepare papers
+        run: |
+          mkdir -p papers/
+          if [ -n "${{ inputs.paper_ids }}" ]; then
+            IFS=',' read -ra IDS <<< "${{ inputs.paper_ids }}"
+            for id in "${IDS[@]}"; do
+              id=$(echo "$id" | tr -d ' ')
+              if [ -f "test_data/papers/${id}.pdf" ]; then
+                cp "test_data/papers/${id}.pdf" papers/
+                echo "Copied: ${id}.pdf"
+              else
+                echo "Warning: test_data/papers/${id}.pdf not found"
+              fi
+            done
+          else
+            cp test_data/papers/*.pdf papers/
+          fi
+          echo "Papers to analyze:"
+          ls -la papers/
       - name: Run experiment_analyze
         run: |
           python scripts/run_agent.py \
             --agent experiment_analyze \
-            --input-dir test_data/papers/ \
+            --input-dir papers/ \
             --output-dir analysis/ \
+            --temp-dir temp/exp \
             --save-temp
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
           name: result-exp
-          path: analysis/
+          path: |
+            analysis/
+            temp/
           retention-days: 1
 
   test-summarize:
