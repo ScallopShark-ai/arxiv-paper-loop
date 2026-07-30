@@ -134,6 +134,89 @@ def call_claude(system_prompt: str, user_message: str, model: str, max_retries: 
     raise last_error
 
 
+def call_claude_with_images(system_prompt: str, text_content: str, images: list, model: str, max_retries: int = 2) -> str:
+    """Call Claude API with multimodal content (text + images)."""
+    import time
+    import base64
+
+    # Set longer timeout for large content processing (10 minutes)
+    client = anthropic.Anthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        base_url=os.environ.get("ANTHROPIC_BASE_URL"),
+        timeout=600.0  # 10 minutes timeout
+    )
+
+    # Build content blocks
+    content_blocks = [{"type": "text", "text": text_content}]
+
+    # Add images (limit to first 20 to avoid token limits)
+    for img_info in images[:20]:
+        img_path = img_info["path"]
+        try:
+            with open(img_path, "rb") as f:
+                image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+            # Determine media type
+            ext = os.path.splitext(img_path)[1].lower()
+            media_type = "image/png" if ext == ".png" else "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+
+            content_blocks.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": image_data
+                }
+            })
+            # Add label for the image
+            content_blocks.append({
+                "type": "text",
+                "text": f"\n<图/表：{img_info['filename']} (第{img_info['page']}页)>\n"
+            })
+        except Exception as e:
+            print(f"Warning: Failed to read image {img_path}: {e}")
+            continue
+
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=16000,
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": content_blocks}
+                ]
+            )
+
+            # Handle both regular text blocks and thinking blocks
+            result_parts = []
+            for block in message.content:
+                if hasattr(block, 'text'):
+                    result_parts.append(block.text)
+                # Skip thinking blocks - do not include in output
+                elif hasattr(block, 'thinking'):
+                    continue
+                else:
+                    result_parts.append(str(block))
+
+            return "\n".join(result_parts)
+
+        except anthropic.InternalServerError as e:
+            last_error = e
+            if "524" in str(e) or "timeout" in str(e).lower():
+                print(f"Timeout error (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                if attempt < max_retries:
+                    time.sleep(5)
+                    continue
+            raise
+        except Exception as e:
+            last_error = e
+            raise
+
+    raise last_error
+
+
 def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_date: str = None, save_temp: bool = False, paper_ids: str = None):
     """Run analyze_pri agent - search and download papers."""
     sys.path.insert(0, ".claude/skills/arxiv-connect/scripts")
@@ -329,33 +412,40 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
         from pdf_reader import read_pdf
         content = read_pdf(paper['path'])
 
-        # Build image section if images were extracted
-        image_section = ""
+        # Build image list if images were extracted
+        image_list = []
         if paper_name in image_info and image_info[paper_name]["images"]:
             images = image_info[paper_name]["images"]
             image_dir = image_info[paper_name]["path"]
-            image_section = "\n\n## 提取的图表\n\n"
-            for img in images:
+            # Build list of images with full paths
+            for img in images[:20]:  # Limit to 20 images to avoid token limits
                 img_path = os.path.join(image_dir, img['filename'])
-                img_type = img.get('type', 'image')
-                page = img.get('page', '?')
-                image_section += f"- [{img_type}] {img['filename']} (第{page}页, {img['width']}x{img['height']})\n"
-            image_section += "\n图表已保存，可在报告中引用。\n"
+                if os.path.exists(img_path):
+                    image_list.append({
+                        "path": img_path,
+                        "filename": img['filename'],
+                        "page": img.get('page', '?'),
+                        "type": img.get('type', 'image')
+                    })
+            print(f"  Including {len(image_list)} images for analysis")
 
-        # Use full content (no truncation) for complete analysis
-        content_preview = content
-
-        user_message = f"""
+        # Build text content
+        text_content = f"""
         Analyze this paper:
 
         Filename: {paper['filename']}
 
         Content:
-        {content_preview}
-        {image_section}
+        {content}
         """
 
-        analysis = call_claude(system_prompt, user_message, model)
+        # Use multimodal API if images are available
+        if image_list:
+            print(f"  Using multimodal API with {len(image_list)} images")
+            analysis = call_claude_with_images(system_prompt, text_content, image_list, model)
+        else:
+            analysis = call_claude(system_prompt, text_content, model)
+
         all_analyses.append(f"## {paper['filename']}\n\n{analysis}")
 
     # Write output to output_dir (always)
