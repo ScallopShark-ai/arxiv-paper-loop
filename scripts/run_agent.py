@@ -261,6 +261,34 @@ def run_analyze_pri(output_dir: str, temp_dir: str, start_date: str = None, end_
     return downloaded
 
 
+def extract_images_from_pdfs(input_dir: str, output_dir: str) -> dict:
+    """Extract images from all PDFs in input directory."""
+    import sys
+    sys.path.insert(0, ".claude/skills/pdf-image-extractor/scripts")
+    from pdf_image_extractor import extract_images
+
+    image_info = {}
+    pdf_files = glob.glob(f"{input_dir}/*.pdf")
+
+    for pdf_path in pdf_files:
+        pdf_name = os.path.basename(pdf_path).replace(".pdf", "")
+        image_output_dir = f"{output_dir}/images/{pdf_name}"
+        os.makedirs(image_output_dir, exist_ok=True)
+
+        try:
+            images = extract_images(pdf_path, image_output_dir, extract_tables=True)
+            image_info[pdf_name] = {
+                "path": image_output_dir,
+                "images": images
+            }
+            print(f"Extracted {len(images)} images from {pdf_name}")
+        except Exception as e:
+            print(f"Warning: Failed to extract images from {pdf_name}: {e}")
+            image_info[pdf_name] = {"path": image_output_dir, "images": []}
+
+    return image_info
+
+
 def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir: str, save_temp: bool = False):
     """Run an analysis agent (analyze_acc, experiment_analyze)."""
     config = load_agent_config(agent_name)
@@ -273,6 +301,10 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
         os.makedirs(temp_dir, exist_ok=True)
 
     print(f"Running {agent_name} with model: {model}")
+
+    # Extract images from PDFs first
+    print("Extracting images from PDFs...")
+    image_info = extract_images_from_pdfs(input_dir, output_dir)
 
     # Handle no papers found
     if not papers:
@@ -290,11 +322,25 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
 
     for paper in papers:
         print(f"Analyzing: {paper['filename']}")
+        paper_name = paper['filename'].replace(".pdf", "")
 
         # Read PDF content
         sys.path.insert(0, ".claude/skills/pdf-reader/scripts")
         from pdf_reader import read_pdf
         content = read_pdf(paper['path'])
+
+        # Build image section if images were extracted
+        image_section = ""
+        if paper_name in image_info and image_info[paper_name]["images"]:
+            images = image_info[paper_name]["images"]
+            image_dir = image_info[paper_name]["path"]
+            image_section = "\n\n## 提取的图表\n\n"
+            for img in images:
+                img_path = os.path.join(image_dir, img['filename'])
+                img_type = img.get('type', 'image')
+                page = img.get('page', '?')
+                image_section += f"- [{img_type}] {img['filename']} (第{page}页, {img['width']}x{img['height']})\n"
+            image_section += "\n图表已保存，可在报告中引用。\n"
 
         # Use full content (no truncation) for complete analysis
         content_preview = content
@@ -306,6 +352,7 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
 
         Content:
         {content_preview}
+        {image_section}
         """
 
         analysis = call_claude(system_prompt, user_message, model)
