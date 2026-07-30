@@ -111,9 +111,9 @@ def call_claude(system_prompt: str, user_message: str, model: str, max_retries: 
             for block in message.content:
                 if hasattr(block, 'text'):
                     result_parts.append(block.text)
+                # Skip thinking blocks - do not include in output
                 elif hasattr(block, 'thinking'):
-                    # For thinking models, extract the thinking content if available
-                    result_parts.append(str(block))
+                    continue
                 else:
                     result_parts.append(str(block))
 
@@ -296,8 +296,8 @@ def run_analyze_agent(agent_name: str, input_dir: str, output_dir: str, temp_dir
         from pdf_reader import read_pdf
         content = read_pdf(paper['path'])
 
-        # Reduce content length to avoid timeout (30000 chars instead of 50000)
-        content_preview = content[:30000] if len(content) > 30000 else content
+        # Use full content (no truncation) for complete analysis
+        content_preview = content
 
         user_message = f"""
         Analyze this paper:
