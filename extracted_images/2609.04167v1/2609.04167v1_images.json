@@ -1,0 +1,81 @@
+[
+  {
+    "filename": "2609.04167v1_page3_fig13.jpeg",
+    "page": 3,
+    "index": 13,
+    "width": 200,
+    "height": 173,
+    "format": "jpeg",
+    "position": null
+  },
+  {
+    "filename": "2609.04167v1_page3_table1.png",
+    "page": 3,
+    "index": 1,
+    "type": "table",
+    "width": 1041,
+    "height": 1333,
+    "position": {
+      "x": 48.483001708984375,
+      "y": 48.35207748413086,
+      "width": 519.5214538574219,
+      "height": 666.0603981018066
+    }
+  },
+  {
+    "filename": "2609.04167v1_page6_table1.png",
+    "page": 6,
+    "index": 1,
+    "type": "table",
+    "width": 1048,
+    "height": 1275,
+    "position": {
+      "x": 44.0,
+      "y": 47.63990020751953,
+      "width": 523.9951782226562,
+      "height": 637.142204284668
+    }
+  },
+  {
+    "filename": "2609.04167v1_page8_table1.png",
+    "page": 8,
+    "index": 1,
+    "type": "table",
+    "width": 1049,
+    "height": 1009,
+    "position": {
+      "x": 44.0,
+      "y": 46.411537170410156,
+      "width": 524.00439453125,
+      "height": 503.61617279052734
+    }
+  },
+  {
+    "filename": "2609.04167v1_page9_table1.png",
+    "page": 9,
+    "index": 1,
+    "type": "table",
+    "width": 1048,
+    "height": 1315,
+    "position": {
+      "x": 44.0,
+      "y": 46.31640625,
+      "width": 523.9948120117188,
+      "height": 657.13671875
+    }
+  },
+  {
+    "filename": "2609.04167v1_page10_table1.png",
+    "page": 10,
+    "index": 1,
+    "type": "table",
+    "width": 1049,
+    "height": 914,
+    "position": {
+      "x": 44.0,
+      "y": 46.31634521484375,
+      "width": 524.0046997070312,
+      "height": 456.5317077636719
+    }
+  }
+]

@@ -1,0 +1,53 @@
+[
+  {
+    "filename": "2609.04170v1_page1_fig1.png",
+    "page": 1,
+    "index": 1,
+    "width": 3810,
+    "height": 512,
+    "format": "png",
+    "position": null
+  },
+  {
+    "filename": "2609.04170v1_page16_table1.png",
+    "page": 16,
+    "index": 1,
+    "type": "table",
+    "width": 947,
+    "height": 665,
+    "position": {
+      "x": 62.40699768066406,
+      "y": 282.0434265136719,
+      "width": 472.9479217529297,
+      "height": 332.2290954589844
+    }
+  },
+  {
+    "filename": "2609.04170v1_page18_table1.png",
+    "page": 18,
+    "index": 1,
+    "type": "table",
+    "width": 947,
+    "height": 407,
+    "position": {
+      "x": 62.40699768066406,
+      "y": 412.3406066894531,
+      "width": 472.9479217529297,
+      "height": 202.96389770507812
+    }
+  },
+  {
+    "filename": "2609.04170v1_page20_table1.png",
+    "page": 20,
+    "index": 1,
+    "type": "table",
+    "width": 954,
+    "height": 802,
+    "position": {
+      "x": 59.33599853515625,
+      "y": 175.81851196289062,
+      "width": 476.60687255859375,
+      "height": 400.3562927246094
+    }
+  }
+]

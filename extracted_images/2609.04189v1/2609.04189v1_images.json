@@ -1,0 +1,366 @@
+[
+  {
+    "filename": "2609.04189v1_page1_table1.png",
+    "page": 1,
+    "index": 1,
+    "type": "table",
+    "width": 690,
+    "height": 541,
+    "position": {
+      "x": 133.86599731445312,
+      "y": 151.16046142578125,
+      "width": 344.2721862792969,
+      "height": 270.20562744140625
+    }
+  },
+  {
+    "filename": "2609.04189v1_page3_table1.png",
+    "page": 3,
+    "index": 1,
+    "type": "table",
+    "width": 836,
+    "height": 918,
+    "position": {
+      "x": 97.7509994506836,
+      "y": 280.7674865722656,
+      "width": 417.49686431884766,
+      "height": 458.3555603027344
+    }
+  },
+  {
+    "filename": "2609.04189v1_page4_table1.png",
+    "page": 4,
+    "index": 1,
+    "type": "table",
+    "width": 839,
+    "height": 589,
+    "position": {
+      "x": 96.83399963378906,
+      "y": 282.1453552246094,
+      "width": 418.8169708251953,
+      "height": 294.0542907714844
+    }
+  },
+  {
+    "filename": "2609.04189v1_page6_table1.png",
+    "page": 6,
+    "index": 1,
+    "type": "table",
+    "width": 838,
+    "height": 574,
+    "position": {
+      "x": 97.44200134277344,
+      "y": 61.447959899902344,
+      "width": 418.3018341064453,
+      "height": 286.2581253051758
+    }
+  },
+  {
+    "filename": "2609.04189v1_page7_table1.png",
+    "page": 7,
+    "index": 1,
+    "type": "table",
+    "width": 837,
+    "height": 1193,
+    "position": {
+      "x": 97.53199768066406,
+      "y": 63.11663818359375,
+      "width": 418.1195831298828,
+      "height": 596.16845703125
+    }
+  },
+  {
+    "filename": "2609.04189v1_page9_table1.png",
+    "page": 9,
+    "index": 1,
+    "type": "table",
+    "width": 819,
+    "height": 652,
+    "position": {
+      "x": 101.2781982421875,
+      "y": 162.7832489013672,
+      "width": 408.73736572265625,
+      "height": 325.39857482910156
+    }
+  },
+  {
+    "filename": "2609.04189v1_page14_table1.png",
+    "page": 14,
+    "index": 1,
+    "type": "table",
+    "width": 652,
+    "height": 360,
+    "position": {
+      "x": 143.26998901367188,
+      "y": 539.8919677734375,
+      "width": 325.4630432128906,
+      "height": 179.51416015625
+    }
+  },
+  {
+    "filename": "2609.04189v1_page15_table1.png",
+    "page": 15,
+    "index": 1,
+    "type": "table",
+    "width": 834,
+    "height": 1237,
+    "position": {
+      "x": 98.0,
+      "y": 94.23731994628906,
+      "width": 416.6723327636719,
+      "height": 618.2287445068359
+    }
+  },
+  {
+    "filename": "2609.04189v1_page16_table1.png",
+    "page": 16,
+    "index": 1,
+    "type": "table",
+    "width": 838,
+    "height": 1304,
+    "position": {
+      "x": 97.44200134277344,
+      "y": 81.30537414550781,
+      "width": 418.3018341064453,
+      "height": 651.5316009521484
+    }
+  },
+  {
+    "filename": "2609.04189v1_page17_table1.png",
+    "page": 17,
+    "index": 1,
+    "type": "table",
+    "width": 822,
+    "height": 1021,
+    "position": {
+      "x": 97.64093017578125,
+      "y": 90.04410552978516,
+      "width": 410.45306396484375,
+      "height": 510.38802337646484
+    }
+  },
+  {
+    "filename": "2609.04189v1_page19_table1.png",
+    "page": 19,
+    "index": 1,
+    "type": "table",
+    "width": 837,
+    "height": 880,
+    "position": {
+      "x": 97.53199768066406,
+      "y": 301.5706481933594,
+      "width": 418.21116638183594,
+      "height": 439.4874572753906
+    }
+  },
+  {
+    "filename": "2609.04189v1_page20_table1.png",
+    "page": 20,
+    "index": 1,
+    "type": "table",
+    "width": 837,
+    "height": 1153,
+    "position": {
+      "x": 97.69094848632812,
+      "y": 127.7528076171875,
+      "width": 417.96337890625,
+      "height": 575.7763061523438
+    }
+  },
+  {
+    "filename": "2609.04189v1_page21_table1.png",
+    "page": 21,
+    "index": 1,
+    "type": "table",
+    "width": 835,
+    "height": 1316,
+    "position": {
+      "x": 97.64099884033203,
+      "y": 82.00743103027344,
+      "width": 417.02584075927734,
+      "height": 657.5566558837891
+    }
+  },
+  {
+    "filename": "2609.04189v1_page22_table1.png",
+    "page": 22,
+    "index": 1,
+    "type": "table",
+    "width": 836,
+    "height": 1157,
+    "position": {
+      "x": 98.00001525878906,
+      "y": 157.9896240234375,
+      "width": 417.7438201904297,
+      "height": 577.7388305664062
+    }
+  },
+  {
+    "filename": "2609.04189v1_page23_table1.png",
+    "page": 23,
+    "index": 1,
+    "type": "table",
+    "width": 834,
+    "height": 1052,
+    "position": {
+      "x": 97.99996948242188,
+      "y": 85.04302215576172,
+      "width": 416.675048828125,
+      "height": 525.602668762207
+    }
+  },
+  {
+    "filename": "2609.04189v1_page24_table1.png",
+    "page": 24,
+    "index": 1,
+    "type": "table",
+    "width": 834,
+    "height": 997,
+    "position": {
+      "x": 98.0,
+      "y": 205.8406982421875,
+      "width": 416.6690368652344,
+      "height": 498.0084228515625
+    }
+  },
+  {
+    "filename": "2609.04189v1_page25_table1.png",
+    "page": 25,
+    "index": 1,
+    "type": "table",
+    "width": 835,
+    "height": 1143,
+    "position": {
+      "x": 97.6709976196289,
+      "y": 112.98307037353516,
+      "width": 416.9963607788086,
+      "height": 570.9090194702148
+    }
+  },
+  {
+    "filename": "2609.04189v1_page26_table1.png",
+    "page": 26,
+    "index": 1,
+    "type": "table",
+    "width": 602,
+    "height": 1228,
+    "position": {
+      "x": 155.9290008544922,
+      "y": 124.86566162109375,
+      "width": 300.15061950683594,
+      "height": 613.5433959960938
+    }
+  },
+  {
+    "filename": "2609.04189v1_page27_table1.png",
+    "page": 27,
+    "index": 1,
+    "type": "table",
+    "width": 570,
+    "height": 447,
+    "position": {
+      "x": 163.86398315429688,
+      "y": 419.54803466796875,
+      "width": 284.2835693359375,
+      "height": 223.21905517578125
+    }
+  },
+  {
+    "filename": "2609.04189v1_page28_table1.png",
+    "page": 28,
+    "index": 1,
+    "type": "table",
+    "width": 759,
+    "height": 1123,
+    "position": {
+      "x": 97.69094848632812,
+      "y": 128.09994506835938,
+      "width": 379.1614990234375,
+      "height": 560.9209899902344
+    }
+  },
+  {
+    "filename": "2609.04189v1_page29_table1.png",
+    "page": 29,
+    "index": 1,
+    "type": "table",
+    "width": 764,
+    "height": 1317,
+    "position": {
+      "x": 115.18299865722656,
+      "y": 81.56837463378906,
+      "width": 381.63246154785156,
+      "height": 658.0527191162109
+    }
+  },
+  {
+    "filename": "2609.04189v1_page30_table1.png",
+    "page": 30,
+    "index": 1,
+    "type": "table",
+    "width": 823,
+    "height": 982,
+    "position": {
+      "x": 103.7540054321289,
+      "y": 130.18496704101562,
+      "width": 410.99300384521484,
+      "height": 490.7391052246094
+    }
+  },
+  {
+    "filename": "2609.04189v1_page31_table1.png",
+    "page": 31,
+    "index": 1,
+    "type": "table",
+    "width": 837,
+    "height": 973,
+    "position": {
+      "x": 97.64099884033203,
+      "y": 169.8599853515625,
+      "width": 418.0073471069336,
+      "height": 485.81207275390625
+    }
+  },
+  {
+    "filename": "2609.04189v1_page32_table1.png",
+    "page": 32,
+    "index": 1,
+    "type": "table",
+    "width": 837,
+    "height": 1339,
+    "position": {
+      "x": 97.53199768066406,
+      "y": 64.65666198730469,
+      "width": 418.20668029785156,
+      "height": 669.2683868408203
+    }
+  },
+  {
+    "filename": "2609.04189v1_page33_table1.png",
+    "page": 33,
+    "index": 1,
+    "type": "table",
+    "width": 833,
+    "height": 292,
+    "position": {
+      "x": 98.0,
+      "y": 314.07568359375,
+      "width": 416.0059509277344,
+      "height": 145.906982421875
+    }
+  },
+  {
+    "filename": "2609.04189v1_page34_table1.png",
+    "page": 34,
+    "index": 1,
+    "type": "table",
+    "width": 726,
+    "height": 267,
+    "position": {
+      "x": 147.83799743652344,
+      "y": 168.2283172607422,
+      "width": 362.21495056152344,
+      "height": 132.8363494873047
+    }
+  }
+]
